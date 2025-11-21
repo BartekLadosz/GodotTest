@@ -1,5 +1,6 @@
 using Godot;
 using System;
+using System.Collections.Generic;
 using Epic.OnlineServices;
 using Epic.OnlineServices.Platform;
 using Epic.OnlineServices.Logging;
@@ -17,6 +18,9 @@ public partial class EOSManager : Node
 	public delegate void LobbyJoinedEventHandler(string lobbyId);
 
 	[Signal]
+	public delegate void LobbyJoinFailedEventHandler(string errorMessage);
+
+	[Signal]
 	public delegate void LobbyCreatedEventHandler(string lobbyId);
 
 	[Signal]
@@ -30,6 +34,9 @@ public partial class EOSManager : Node
 
 	[Signal]
 	public delegate void LobbyMembersUpdatedEventHandler(Godot.Collections.Array<Godot.Collections.Dictionary> members);
+
+	[Signal]
+	public delegate void CustomLobbyIdUpdatedEventHandler(string customLobbyId);
 
 	// Dane produktu
 	private string productName = "WZIMniacy";
@@ -63,7 +70,10 @@ public partial class EOSManager : Node
 
 	// Obecne lobby w którym jesteśmy
 	public string currentLobbyId = null;
-	private bool isLobbyOwner = false;
+	public bool isLobbyOwner = false;
+
+	// Custom Lobby ID (6-znakowy kod do wyszukiwania)
+	public string currentCustomLobbyId = "";
 
 	// Aktualna lista członków lobby (cache)
 	private Godot.Collections.Array<Godot.Collections.Dictionary> currentLobbyMembers = new Godot.Collections.Array<Godot.Collections.Dictionary>();
@@ -521,10 +531,10 @@ public partial class EOSManager : Node
 	/// <summary>
 	/// Tworzy nowe lobby
 	/// </summary>
-	/// <param name="lobbyName">Nazwa lobby (opcjonalnie, może być puste)</param>
+	/// <param name="customLobbyId">6-znakowy kod lobby do wyszukiwania (np. "V5CGSP")</param>
 	/// <param name="maxPlayers">Maksymalna liczba graczy (2-64)</param>
 	/// <param name="isPublic">Czy lobby jest publiczne (można wyszukać)?</param>
-	public void CreateLobby(string lobbyName, uint maxPlayers = 4, bool isPublic = true)
+	public void CreateLobby(string customLobbyId, uint maxPlayers = 10, bool isPublic = true)
 	{
 		if (localProductUserId == null || !localProductUserId.IsValid())
 		{
@@ -551,7 +561,9 @@ public partial class EOSManager : Node
 			return;
 		}
 
-		GD.Print($"🏗️ Creating lobby: {lobbyName}, Max players: {maxPlayers}, Public: {isPublic}");
+		// Zapisz custom lobby ID
+		currentCustomLobbyId = customLobbyId;
+		GD.Print($"🏗️ Creating lobby with custom ID: {customLobbyId}, Max players: {maxPlayers}, Public: {isPublic}");
 
 		// Zablokuj tworzenie lobby
 		isCreatingLobby = true;
@@ -571,11 +583,69 @@ public partial class EOSManager : Node
 		lobbyInterface.CreateLobby(ref createLobbyOptions, null, OnCreateLobbyComplete);
 	}
 
+	/// <summary>
+	/// Pobiera wszystkie atrybuty lobby
+	/// </summary>
+	/// <returns>Dictionary z kluczami i wartościami atrybutów</returns>
+	public Godot.Collections.Dictionary GetAllLobbyAttributes()
+	{
+		var attributes = new Godot.Collections.Dictionary();
+
+		if (string.IsNullOrEmpty(currentLobbyId))
+		{
+			GD.PrintErr("❌ Cannot get lobby attributes: Not in any lobby!");
+			return attributes;
+		}
+
+		if (!foundLobbyDetails.ContainsKey(currentLobbyId))
+		{
+			GD.PrintErr($"❌ Lobby details not found for ID: {currentLobbyId}");
+			return attributes;
+		}
+
+		LobbyDetails lobbyDetails = foundLobbyDetails[currentLobbyId];
+
+		if (lobbyDetails == null)
+		{
+			GD.PrintErr("❌ Lobby details is null!");
+			return attributes;
+		}
+
+		// Pobierz liczbę atrybutów
+		var countOptions = new LobbyDetailsGetAttributeCountOptions();
+		uint attributeCount = lobbyDetails.GetAttributeCount(ref countOptions);
+
+		GD.Print($"📋 Getting {attributeCount} lobby attributes...");
+
+		// Iteruj po wszystkich atrybutach
+		for (uint i = 0; i < attributeCount; i++)
+		{
+			var copyOptions = new LobbyDetailsCopyAttributeByIndexOptions()
+			{
+				AttrIndex = i
+			};
+
+			Result result = lobbyDetails.CopyAttributeByIndex(ref copyOptions, out Epic.OnlineServices.Lobby.Attribute? attribute);
+
+			if (result == Result.Success && attribute.HasValue && attribute.Value.Data.HasValue)
+			{
+				string key = attribute.Value.Data.Value.Key;
+				string value = attribute.Value.Data.Value.Value.AsUtf8;
+
+				attributes[key] = value;
+				GD.Print($"  [{i}] {key} = '{value}'");
+			}
+		}
+
+		return attributes;
+	}
+
 	private void OnCreateLobbyComplete(ref CreateLobbyCallbackInfo data)
 	{
 		if (data.ResultCode == Result.Success)
 		{
-			GD.Print($"✅ Lobby created successfully! Lobby ID: {data.LobbyId}");
+			GD.Print($"✅ Lobby created successfully! EOS Lobby ID: {data.LobbyId}");
+			GD.Print($"✅ Custom Lobby ID: {currentCustomLobbyId}");
 
 			// Zapisz obecne lobby
 			currentLobbyId = data.LobbyId.ToString();
@@ -583,23 +653,55 @@ public partial class EOSManager : Node
 			// NOWE: Natychmiast skopiuj LobbyDetails handle bez wykonywania SearchLobbies()
 			CacheCurrentLobbyDetailsHandle("create");
 
+			// WAŻNE: Ustaw custom ID jako atrybut lobby (po krótkiej chwili)
+			GetTree().CreateTimer(0.5).Timeout += () =>
+			{
+				SetLobbyAttribute("CustomLobbyId", currentCustomLobbyId);
+				
+				// Wyślij sygnał o aktualizacji CustomLobbyId
+				EmitSignal(SignalName.CustomLobbyIdUpdated, currentCustomLobbyId);
+			};
+
+			// Wyślij info o obecnym lobby (1 gracz = właściciel, 10 max)
+
+			EmitSignal(SignalName.CurrentLobbyInfoUpdated, currentLobbyId, 1, 10, true);
+
 			// Wyślij sygnał do UI
 			EmitSignal(SignalName.LobbyCreated, currentLobbyId);
 
-			// Wyślij info o obecnym lobby (1 gracz = właściciel, 4 max)
-			EmitSignal(SignalName.CurrentLobbyInfoUpdated, currentLobbyId, 1, 4, true);
-
-			// Ustaw nickname jako member attribute (jeśli został ustawiony)
+			// Ustaw nickname i drużynę jako member attributes
 			if (!string.IsNullOrEmpty(pendingNickname))
 			{
 				GetTree().CreateTimer(1.0).Timeout += () =>
 				{
 					SetMemberAttribute("Nickname", pendingNickname);
-					// Po ustawieniu, odśwież listę członków
+					// Po ustawieniu nicka, ustaw drużynę
+					GetTree().CreateTimer(0.5).Timeout += () =>
+					{
+						GD.Print("🎲 Host auto-assigning to Blue team...");
+						SetMemberAttribute("Team", "Blue"); // Host zawsze Blue
+						
+						// Po ustawieniu drużyny, odśwież listę członków
+						GetTree().CreateTimer(1.0).Timeout += () =>
+						{
+							GetLobbyMembers();
+						};
+					};
+				};
+			}
+			else
+			{
+				// Bez nicka też ustaw drużynę
+				GetTree().CreateTimer(1.0).Timeout += () =>
+				{
+					GD.Print("🎲 Host auto-assigning to Blue team...");
+					SetMemberAttribute("Team", "Blue"); // Host zawsze Blue
+					
+					// Po ustawieniu drużyny, odśwież listę członków
 					GetTree().CreateTimer(1.0).Timeout += () =>
-	{
-		GetLobbyMembers();
-	};
+					{
+						GetLobbyMembers();
+					};
 				};
 			}
 
@@ -612,20 +714,20 @@ public partial class EOSManager : Node
 			: $"Player_{localProductUserId.ToString().Substring(Math.Max(0, localProductUserId.ToString().Length - 8))}";
 
 			var tempMemberData = new Godot.Collections.Dictionary
-{
-{ "userId", localProductUserId.ToString() },
-{ "displayName", displayName },
-{ "isOwner", true },
-{ "isLocalPlayer", true }
-};
+			{
+				{ "userId", localProductUserId.ToString() },
+				{ "displayName", displayName },
+				{ "isOwner", true },
+				{ "isLocalPlayer", true },
+				{ "team", "" } // Jeszcze nie przypisany
+			};
 			tempMembersList.Add(tempMemberData);
 
 			// Zapisz do cache
 			currentLobbyMembers = tempMembersList;
 
 			EmitSignal(SignalName.LobbyMembersUpdated, tempMembersList);
-			GD.Print($"👥 Sent initial member list (1 member - you)"); // Możesz teraz ustawić atrybuty lobby (nazwa, mapa, tryb gry itp.)
-																	   // SetLobbyAttribute(data.LobbyId, "LobbyName", "My Awesome Lobby");
+			GD.Print($"👥 Sent initial member list (1 member - you)"); // Możesz teraz ustawić atrybuty lobby (nazwa, mapa, tryb gry itp.)													
 		}
 		else
 		{
@@ -760,6 +862,144 @@ public partial class EOSManager : Node
 	}
 
 	/// <summary>
+	/// Wyszukuje lobby po custom ID (6-znakowy kod)
+	/// </summary>
+	/// <param name="customLobbyId">Custom ID lobby do wyszukania (np. "V5CGSP")</param>
+	/// <param name="onComplete">Callback wywoływany po zakończeniu (success: bool, lobbyId: string)</param>
+	public void SearchLobbyByCustomId(string customLobbyId, Action<bool, string> onComplete = null)
+	{
+		if (localProductUserId == null || !localProductUserId.IsValid())
+		{
+			GD.PrintErr("❌ Cannot search lobby: User not logged in!");
+			onComplete?.Invoke(false, "");
+			return;
+		}
+
+		GD.Print($"🔍 Searching for lobby with custom ID: {customLobbyId}...");
+
+		// Utwórz wyszukiwanie
+		var createLobbySearchOptions = new CreateLobbySearchOptions()
+		{
+			MaxResults = 25
+		};
+
+		Result result = lobbyInterface.CreateLobbySearch(ref createLobbySearchOptions, out LobbySearch lobbySearch);
+
+		if (result != Result.Success || lobbySearch == null)
+		{
+			GD.PrintErr($"❌ Failed to create lobby search: {result}");
+			onComplete?.Invoke(false, "");
+			return;
+		}
+
+		// Filtruj po custom ID
+		var searchSetParameterOptions = new LobbySearchSetParameterOptions()
+		{
+			ComparisonOp = ComparisonOp.Equal,
+			Parameter = new AttributeData()
+			{
+				Key = "CustomLobbyId",
+				Value = new AttributeDataValue() { AsUtf8 = customLobbyId }
+			}
+		};
+
+		lobbySearch.SetParameter(ref searchSetParameterOptions);
+
+		// Rozpocznij wyszukiwanie
+		var findOptions = new LobbySearchFindOptions()
+		{
+			LocalUserId = localProductUserId
+		};
+
+		lobbySearch.Find(ref findOptions, null, (ref LobbySearchFindCallbackInfo findData) =>
+		{
+			if (findData.ResultCode == Result.Success)
+			{
+				var countOptions = new LobbySearchGetSearchResultCountOptions();
+				uint lobbyCount = lobbySearch.GetSearchResultCount(ref countOptions);
+				GD.Print($"✅ Found {lobbyCount} lobby with custom ID: {customLobbyId}");
+
+				if (lobbyCount > 0)
+				{
+					// Pobierz pierwsze znalezione lobby
+					var copyOptions = new LobbySearchCopySearchResultByIndexOptions() { LobbyIndex = 0 };
+					Result copyResult = lobbySearch.CopySearchResultByIndex(ref copyOptions, out LobbyDetails lobbyDetails);
+
+					if (copyResult == Result.Success && lobbyDetails != null)
+					{
+						var infoOptions = new LobbyDetailsCopyInfoOptions();
+						lobbyDetails.CopyInfo(ref infoOptions, out LobbyDetailsInfo? info);
+
+						if (info != null)
+						{
+							string foundLobbyId = info.Value.LobbyId;
+
+							// Zapisz LobbyDetails do cache
+							if (!foundLobbyDetails.ContainsKey(foundLobbyId))
+							{
+								foundLobbyDetails[foundLobbyId] = lobbyDetails;
+							}
+							else
+							{
+								foundLobbyDetails[foundLobbyId]?.Release();
+								foundLobbyDetails[foundLobbyId] = lobbyDetails;
+							}
+
+							GD.Print($"✅ Found lobby! EOS ID: {foundLobbyId}");
+							onComplete?.Invoke(true, foundLobbyId);
+						}
+						else
+						{
+							lobbyDetails.Release();
+							onComplete?.Invoke(false, "");
+						}
+					}
+					else
+					{
+						GD.PrintErr("❌ Failed to copy lobby details");
+						onComplete?.Invoke(false, "");
+					}
+				}
+				else
+				{
+					GD.Print($"⚠️ No lobby found with custom ID: {customLobbyId}");
+					onComplete?.Invoke(false, "");
+				}
+			}
+			else
+			{
+				GD.PrintErr($"❌ Lobby search failed: {findData.ResultCode}");
+				onComplete?.Invoke(false, "");
+			}
+
+			lobbySearch.Release();
+		});
+	}
+
+	/// <summary>
+	/// Wyszukuje i dołącza do lobby po custom ID
+	/// </summary>
+	/// <param name="customLobbyId">Custom ID lobby (np. "V5CGSP")</param>
+	public void JoinLobbyByCustomId(string customLobbyId)
+	{
+		SearchLobbyByCustomId(customLobbyId, (success, lobbyId) =>
+		{
+			if (success && !string.IsNullOrEmpty(lobbyId))
+			{
+				GD.Print($"🚪 Joining lobby with custom ID: {customLobbyId}");
+				JoinLobby(lobbyId);
+			}
+			else
+			{
+				GD.PrintErr($"❌ Cannot join: Lobby with custom ID '{customLobbyId}' not found!");
+				
+				// Wyślij sygnał o błędzie do UI
+				EmitSignal(SignalName.LobbyJoinFailed, $"Lobby '{customLobbyId}' nie istnieje");
+			}
+		});
+	}
+
+	/// <summary>
 	/// Dołącza do lobby po indeksie z ostatniego wyszukania
 	/// </summary>
 	/// <param name="lobbyIndex">Indeks lobby z listy (0, 1, 2...)</param>
@@ -829,51 +1069,78 @@ public partial class EOSManager : Node
 			// Zapisz obecne lobby
 			currentLobbyId = data.LobbyId.ToString();
 			isLobbyOwner = false;
-			// NOWE: Skopiuj LobbyDetails handle natychmiast – eliminuje wyścig z pierwszymi callbackami
+			
+			// KROK 1: Skopiuj LobbyDetails handle natychmiast
 			CacheCurrentLobbyDetailsHandle("join");
 
-			// Wyślij sygnał do UI
-			EmitSignal(SignalName.LobbyJoined, currentLobbyId);
-
-			// Ustaw nickname jako member attribute (jeśli został ustawiony)
-			if (!string.IsNullOrEmpty(pendingNickname))
+			// KROK 2: Poczekaj na synchronizację danych z backendu (1.5s)
+			GetTree().CreateTimer(1.5).Timeout += () =>
 			{
-				GetTree().CreateTimer(1.0).Timeout += () =>
+				GD.Print("🔄 [STEP 1/3] Refreshing lobby info and CustomLobbyId...");
+				
+				// Odśwież handle aby mieć najświeższe dane
+				CacheCurrentLobbyDetailsHandle("refresh_after_join");
+				
+				// Odśwież informacje o lobby (łącznie z CustomLobbyId)
+				RefreshCurrentLobbyInfo();
+				
+				// Pobierz listę członków
+				GetTree().CreateTimer(0.5).Timeout += () =>
 				{
-					SetMemberAttribute("Nickname", pendingNickname);
+					GD.Print("🔄 [STEP 2/3] Fetching lobby members...");
+					GetLobbyMembers();
+					
+					// KROK 3: Wyślij sygnał do UI (zmień scenę) - PO SYNCHRONIZACJI
+					GetTree().CreateTimer(0.5).Timeout += () =>
+					{
+						GD.Print("✅ [STEP 3/3] Synchronization complete, emitting LobbyJoined signal");
+						EmitSignal(SignalName.LobbyJoined, currentLobbyId);
+					};
 				};
-			}
+			};
 
-			// NOWE: Wyślij tymczasową listę członków (tylko ty)
-			// Bo SearchLobbies() zajmie czas
-			var tempMembersList = new Godot.Collections.Array<Godot.Collections.Dictionary>();
+			// KROK 4: Ustaw nickname i drużynę jako member attributes
+			GetTree().CreateTimer(3.0).Timeout += () =>
+			{
+				// Najpierw ustaw nickname (jeśli został ustawiony)
+				if (!string.IsNullOrEmpty(pendingNickname))
+				{
+					GD.Print($"📝 Setting nickname: {pendingNickname}");
+					SetMemberAttribute("Nickname", pendingNickname);
+				}
+				
+				// Automatycznie przypisz się do drużyny (balansowanie)
+				GetTree().CreateTimer(0.5).Timeout += () =>
+				{
+					GD.Print("🎲 Auto-assigning team...");
+					AutoAssignMyTeam();
+					
+					// Po ustawieniu drużyny, odśwież listę członków
+					GetTree().CreateTimer(1.0).Timeout += () =>
+					{
+						GD.Print("🔄 [TEAM] Refreshing lobby members after team assignment...");
+						GetLobbyMembers();
+					};
+				};
+			};
 
-			string displayName = !string.IsNullOrEmpty(pendingNickname)
-			? pendingNickname
-			: $"Player_{localProductUserId.ToString().Substring(Math.Max(0, localProductUserId.ToString().Length - 8))}";
-
-			var tempMemberData = new Godot.Collections.Dictionary
-{
-{ "userId", localProductUserId.ToString() },
-{ "displayName", displayName },
-{ "isOwner", false },
-{ "isLocalPlayer", true }
-};
-			tempMembersList.Add(tempMemberData);
-
-			// Zapisz do cache
-			currentLobbyMembers = tempMembersList;
-
-			EmitSignal(SignalName.LobbyMembersUpdated, tempMembersList);
-			GD.Print($"👥 Sent initial member list (1 member - you)");
-
-			// WAŻNE: Po dołączeniu, wykonaj ponowne wyszukiwanie żeby zaktualizować LobbyDetails
-			// To zapewni, że będziemy mieli aktualną liczbę graczy
+			// KROK 5: Wykonaj pełne wyszukiwanie w tle (dla synchronizacji)
 			CallDeferred(nameof(SearchLobbiesAndRefresh));
 		}
 		else
 		{
 			GD.PrintErr($"❌ Failed to join lobby: {data.ResultCode}");
+			
+			// Wyślij sygnał o błędzie do UI
+			string errorMessage = data.ResultCode switch
+			{
+				Result.InvalidParameters => "Nieprawidłowe parametry lobby",
+				Result.NotFound => "Lobby nie zostało znalezione",
+				Result.NoConnection => "Brak połączenia z serwerem",
+				_ => $"Błąd: {data.ResultCode}"
+			};
+			
+			EmitSignal(SignalName.LobbyJoinFailed, errorMessage);
 		}
 	}
 
@@ -1060,6 +1327,10 @@ public partial class EOSManager : Node
 			// Wyczyść obecne lobby
 			currentLobbyId = null;
 			isLobbyOwner = false;
+			
+			// Wyczyść CustomLobbyId
+			currentCustomLobbyId = "";
+			EmitSignal(SignalName.CustomLobbyIdUpdated, "");
 
 			// Wyczyść cache członków
 			currentLobbyMembers.Clear();
@@ -1168,6 +1439,65 @@ public partial class EOSManager : Node
 	}
 
 	/// <summary>
+	/// Automatycznie przypisuje SIEBIE do drużyny (balansowanie)
+	/// Wywoływane przez gracza po dołączeniu do lobby
+	/// </summary>
+	public void AutoAssignMyTeam()
+	{
+		if (string.IsNullOrEmpty(currentLobbyId))
+		{
+			GD.PrintErr("❌ Cannot assign team: Not in any lobby!");
+			return;
+		}
+
+		// Policz graczy w każdej drużynie (bez siebie)
+		int blueCount = 0;
+		int redCount = 0;
+
+		foreach (var member in currentLobbyMembers)
+		{
+			// Pomiń siebie w liczeniu
+			if (member.ContainsKey("isLocalPlayer") && (bool)member["isLocalPlayer"])
+			{
+				continue;
+			}
+
+			if (member.ContainsKey("team"))
+			{
+				string memberTeam = member["team"].ToString();
+				if (memberTeam == "Blue") blueCount++;
+				else if (memberTeam == "Red") redCount++;
+			}
+		}
+
+		// Przypisz do drużyny z mniejszą liczbą graczy
+		string assignedTeam = blueCount <= redCount ? "Blue" : "Red";
+
+		GD.Print($"🎲 Auto-assigning myself to {assignedTeam} team (Blue: {blueCount}, Red: {redCount})");
+
+		// Ustaw atrybut Team dla siebie
+		SetMemberAttribute("Team", assignedTeam);
+	}
+
+	/// <summary>
+	/// Ustawia member attribute dla określonego użytkownika
+	/// Tylko dla LOKALNEGO gracza - każdy ustawia swoje własne atrybuty
+	/// </summary>
+	/// <param name="key">Klucz atrybutu</param>
+	/// <param name="value">Wartość atrybutu</param>
+	public void SetMyTeam(string teamName)
+	{
+		if (teamName != "Blue" && teamName != "Red")
+		{
+			GD.PrintErr($"❌ Invalid team name: {teamName}");
+			return;
+		}
+
+		SetMemberAttribute("Team", teamName);
+		GD.Print($"✅ Set my team to: {teamName}");
+	}
+
+	/// <summary>
 	/// Odświeża informacje o obecnym lobby i wysyła sygnał do UI
 	/// </summary>
 	private void RefreshCurrentLobbyInfo()
@@ -1207,13 +1537,60 @@ public partial class EOSManager : Node
 				(int)info.Value.MaxMembers,
 				isLobbyOwner);
 
-				// NOWE: Odśwież też listę członków
-				// GetLobbyMembers(); // WYŁĄCZONE - puste UserID z SearchLobbies()
+				// NOWE: Odśwież CustomLobbyId z atrybutów lobby
+				RefreshCustomLobbyId(lobbyDetails);
 			}
 		}
 		else
 		{
 			GD.PrintErr($"❌ Failed to refresh lobby info - lobby details is null");
+		}
+	}
+
+	/// <summary>
+	/// Odświeża CustomLobbyId z atrybutów lobby
+	/// </summary>
+	private void RefreshCustomLobbyId(LobbyDetails lobbyDetails)
+	{
+		if (lobbyDetails == null) return;
+
+		// Pobierz liczbę atrybutów lobby
+		var attrCountOptions = new LobbyDetailsGetAttributeCountOptions();
+		uint attributeCount = lobbyDetails.GetAttributeCount(ref attrCountOptions);
+
+		GD.Print($"🔄 Refreshing CustomLobbyId from {attributeCount} lobby attributes...");
+
+		// Iteruj po wszystkich atrybutach lobby
+		for (uint i = 0; i < attributeCount; i++)
+		{
+			var attrOptions = new LobbyDetailsCopyAttributeByIndexOptions() { AttrIndex = i };
+			Result attrResult = lobbyDetails.CopyAttributeByIndex(ref attrOptions, out Epic.OnlineServices.Lobby.Attribute? attribute);
+
+			if (attrResult == Result.Success && attribute.HasValue && attribute.Value.Data.HasValue)
+			{
+				string keyStr = attribute.Value.Data.Value.Key;
+				string valueStr = attribute.Value.Data.Value.Value.AsUtf8;
+
+				if (keyStr != null && keyStr.Equals("CustomLobbyId", StringComparison.OrdinalIgnoreCase))
+				{
+					string newCustomLobbyId = !string.IsNullOrEmpty(valueStr) ? valueStr : "Unknown";
+					
+					// Tylko zaktualizuj jeśli się zmienił
+					if (currentCustomLobbyId != newCustomLobbyId)
+					{
+						currentCustomLobbyId = newCustomLobbyId;
+						GD.Print($"✅ CustomLobbyId refreshed: {currentCustomLobbyId}");
+						EmitSignal(SignalName.CustomLobbyIdUpdated, currentCustomLobbyId);
+					}
+					return;
+				}
+			}
+		}
+
+		// Jeśli nie znaleziono CustomLobbyId
+		if (string.IsNullOrEmpty(currentCustomLobbyId) || currentCustomLobbyId == "Unknown")
+		{
+			GD.PrintErr("⚠️ CustomLobbyId not found in lobby attributes");
 		}
 	}
 
@@ -1234,9 +1611,94 @@ public partial class EOSManager : Node
 		return (int)memberCount;
 	}
 
+	public void SetCustomLobbyId(string newCustomId)
+	{
+		SetLobbyAttribute("CustomLobbyId", newCustomId);
+
+		GD.Print($"🆔 Setting CustomLobbyId to: {newCustomId}");
+	}
+
 	// ============================================
 	// MEMBER ATTRIBUTES
 	// ============================================
+
+	/// <summary>
+	/// Ustawia atrybut lobby (np. CustomLobbyId, LobbyName)
+	/// </summary>
+	/// <param name="key">Klucz atrybutu</param>
+	/// <param name="value">Wartość atrybutu</param>
+	private void SetLobbyAttribute(string key, string value)
+	{
+		if (string.IsNullOrEmpty(currentLobbyId))
+		{
+			GD.PrintErr("❌ Cannot set lobby attribute: Not in any lobby!");
+			return;
+		}
+
+		if (localProductUserId == null || !localProductUserId.IsValid())
+		{
+			GD.PrintErr("❌ Cannot set lobby attribute: User not logged in!");
+			return;
+		}
+
+		GD.Print($"📝 Setting lobby attribute: {key} = '{value}'");
+
+		var modifyOptions = new UpdateLobbyModificationOptions()
+		{
+			LobbyId = currentLobbyId,
+			LocalUserId = localProductUserId
+		};
+
+		Result result = lobbyInterface.UpdateLobbyModification(ref modifyOptions, out LobbyModification lobbyModification);
+
+		if (result != Result.Success || lobbyModification == null)
+		{
+			GD.PrintErr($"❌ Failed to create lobby modification: {result}");
+			return;
+		}
+
+		// Dodaj lobby attribute
+		var attributeData = new AttributeData()
+		{
+			Key = key,
+			Value = new AttributeDataValue() { AsUtf8 = value }
+		};
+
+		var addAttrOptions = new LobbyModificationAddAttributeOptions()
+		{
+			Attribute = attributeData,
+			Visibility = LobbyAttributeVisibility.Public
+		};
+
+		result = lobbyModification.AddAttribute(ref addAttrOptions);
+
+		if (result != Result.Success)
+		{
+			GD.PrintErr($"❌ Failed to add lobby attribute '{key}': {result}");
+			lobbyModification.Release();
+			return;
+		}
+
+		// Wyślij modyfikację do EOS
+		var updateOptions = new UpdateLobbyOptions()
+		{
+			LobbyModificationHandle = lobbyModification
+		};
+
+		lobbyInterface.UpdateLobby(ref updateOptions, null, (ref UpdateLobbyCallbackInfo data) =>
+		{
+			if (data.ResultCode == Result.Success)
+			{
+				GD.Print($"✅ Lobby attribute '{key}' set successfully: '{value}'");
+			}
+			else
+			{
+				GD.PrintErr($"❌ Failed to update lobby attribute '{key}': {data.ResultCode}");
+			}
+
+			lobbyModification.Release();
+		});
+	}
 
 	/// <summary>
 	/// Ustawia member attribute dla lokalnego gracza w obecnym lobby
@@ -1374,11 +1836,12 @@ public partial class EOSManager : Node
 
 				GD.Print($"    AttributeCount={attributeCount}");
 
-				// Pobierz Nickname (jeśli ustawiony)
+				// Pobierz Nickname i Team z atrybutów członka
 				string displayName = null;
+				string team = ""; // "Blue", "Red", lub pusty string (nie przypisany)
 				bool foundNickname = false;
 
-				// Próbuj pobrać Nickname z atrybutów członka
+				// Iteruj po wszystkich atrybutach członka
 				for (uint j = 0; j < attributeCount; j++)
 				{
 					var attrOptions = new LobbyDetailsCopyMemberAttributeByIndexOptions()
@@ -1389,19 +1852,24 @@ public partial class EOSManager : Node
 
 					Result attrResult = lobbyDetails.CopyMemberAttributeByIndex(ref attrOptions, out Epic.OnlineServices.Lobby.Attribute? attribute);
 
-					if (attrResult == Result.Success && attribute.HasValue)
+					if (attrResult == Result.Success && attribute.HasValue && attribute.Value.Data.HasValue)
 					{
-						GD.Print($"      Attribute: {attribute.Value.Data?.Key} = {attribute.Value.Data?.Value.AsUtf8}");
+						string keyStr = attribute.Value.Data.Value.Key;
+						string valueStr = attribute.Value.Data.Value.Value.AsUtf8;
+						
+						GD.Print($"      Attribute: {keyStr} = {valueStr}");
 
-						if (attribute.Value.Data.HasValue)
+						// Pobierz Nickname
+						if (keyStr != null && keyStr.Equals("Nickname", System.StringComparison.OrdinalIgnoreCase))
 						{
-							string keyStr = attribute.Value.Data.Value.Key;
-							if (keyStr != null && keyStr.Equals("Nickname", System.StringComparison.OrdinalIgnoreCase))
-							{
-								displayName = attribute.Value.Data.Value.Value.AsUtf8;
-								foundNickname = true;
-								break;
-							}
+							displayName = valueStr;
+							foundNickname = true;
+						}
+						
+						// Pobierz Team
+						if (keyStr != null && keyStr.Equals("Team", System.StringComparison.OrdinalIgnoreCase))
+						{
+							team = valueStr;
 						}
 					}
 				}
@@ -1424,16 +1892,17 @@ public partial class EOSManager : Node
 
 				// Dodaj do listy
 				var memberData = new Godot.Collections.Dictionary
-{
-{ "userId", memberUserId.ToString() },
-{ "displayName", displayName },
-{ "isOwner", isOwner },
-{ "isLocalPlayer", isLocalPlayer }
-};
+				{
+					{ "userId", memberUserId.ToString() },
+					{ "displayName", displayName },
+					{ "isOwner", isOwner },
+					{ "isLocalPlayer", isLocalPlayer },
+					{ "team", team } // "Blue", "Red", lub "" (nie przypisany)
+				};
 
 				membersList.Add(memberData);
 
-				GD.Print($"    ✅ Added: {displayName} (Owner: {isOwner}, Local: {isLocalPlayer})");
+				GD.Print($"    ✅ Added: {displayName} (Owner: {isOwner}, Local: {isLocalPlayer}, Team: {(string.IsNullOrEmpty(team) ? "None" : team)})");
 			}
 			else
 			{
@@ -1443,6 +1912,29 @@ public partial class EOSManager : Node
 
 		GD.Print($"👥 Total members added to list: {membersList.Count}");
 
+		// SORTOWANIE: Posortuj po userId (Product User ID) aby wszyscy widzieli tę samą kolejność
+		// Host ma zawsze pierwszy/najniższy ID w lobby, więc będzie na górze
+		// Kolejni gracze będą dodawani w kolejności ich Product User ID
+		
+		// Przekonwertuj Godot.Collections.Array na List<>
+		var sortedMembers = new List<Godot.Collections.Dictionary>();
+		foreach (var member in membersList)
+		{
+			sortedMembers.Add(member);
+		}
+		
+		// Sortuj po userId
+		sortedMembers.Sort((a, b) => 
+			string.Compare(a["userId"].ToString(), b["userId"].ToString(), System.StringComparison.Ordinal)
+		);
+		
+		// Wyczyść i przepisz posortowane elementy
+		membersList.Clear();
+		foreach (var member in sortedMembers)
+		{
+			membersList.Add(member);
+		}
+		
 		// Zapisz do cache
 		currentLobbyMembers = membersList;
 

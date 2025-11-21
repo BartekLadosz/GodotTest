@@ -1,14 +1,14 @@
-[gd_scene load_steps=18 format=3 uid="uid://cqr5yj8x3kp2m"]
+[gd_scene load_steps=27 format=3 uid="uid://cqr5yj8x3kp2m"]
 
 [ext_resource type="FontFile" uid="uid://fx12hnivyylk" path="res://Assets/Fonts/Space_Mono/SpaceMono-Regular.ttf" id="2_31whf"]
 [ext_resource type="StyleBox" uid="uid://dgkp41umsnv7g" path="res://Assets/Inputs/InputPlaceHolder.tres" id="2_qh262"]
 [ext_resource type="Script" uid="uid://ce1tsde0jdaka" path="res://Scripts/UI/UiManager.cs" id="2_qmux8"]
 [ext_resource type="FontFile" uid="uid://c65l5c77oy1p5" path="res://Assets/Fonts/Space_Mono/SpaceMono-Bold.ttf" id="3_1cd5g"]
-[ext_resource type="Script" uid="uid://cu2ikiortvp2o" path="res://Scenes/LobbyCreate/LobbyCreateMenu.gd" id="3_create"]
+[ext_resource type="Script" uid="uid://cu2ikiortvp2o" path="res://Scenes/LobbyCreate/LobbyCreateMenu.cs" id="3_create"]
 [ext_resource type="StyleBox" uid="uid://col41obfm3t76" path="res://Assets/Buttons/ActionButtonsBorderHover.tres" id="4_31whf"]
-[ext_resource type="StyleBox" uid="uid://drl2twqn1nt3b" path="res://Assets/Buttons/button_border.tres" id="4_qh262"]
 [ext_resource type="StyleBox" uid="uid://xp4ier1dij74" path="res://Assets/Buttons/ActionButtonsBorder.tres" id="5_qxwld"]
 [ext_resource type="StyleBox" uid="uid://c01fbiircsfdi" path="res://Assets/Buttons/button_hover.tres" id="5_vomky"]
+[ext_resource type="StyleBox" uid="uid://ch7l8tuol4erl" path="res://Assets/Buttons/button_border2.tres" id="7_qxwld"]
 
 [sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_crh2a"]
 content_margin_left = 4.0
@@ -38,8 +38,22 @@ content_margin_bottom = 4.0
 
 [sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_cotl6"]
 
+[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_ylp5r"]
+content_margin_top = 4.0
+content_margin_bottom = 4.0
+
+[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_3ljwv"]
+content_margin_top = 4.0
+content_margin_bottom = 2.0
+
+[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_8p8jx"]
+
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_qxwld"]
 bg_color = Color(0.08627451, 0.19607843, 0.21176471, 1)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
 border_color = Color(0.21166292, 0.40992555, 0.43836, 1)
 corner_radius_top_left = 4
 corner_radius_top_right = 4
@@ -50,9 +64,33 @@ expand_margin_top = 2.0
 expand_margin_right = 2.0
 expand_margin_bottom = 2.0
 
+[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_0nt4m"]
+
+[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_h1efs"]
+
+[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_splsf"]
+
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_p6ldx"]
 bg_color = Color(0.24313726, 0.02745098, 0.06666667, 1)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
 border_color = Color(0.6377995, 0.13859424, 0.2298455, 1)
+corner_radius_top_left = 4
+corner_radius_top_right = 4
+corner_radius_bottom_right = 4
+corner_radius_bottom_left = 4
+expand_margin_left = 2.0
+expand_margin_top = 2.0
+expand_margin_right = 2.0
+expand_margin_bottom = 2.0
+
+[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_inc6d"]
+
+[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_c62po"]
+
+[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_66l4l"]
 
 [node name="LobbyCreate" type="Control"]
 layout_mode = 3
@@ -122,6 +160,7 @@ paragraph_separator = "\\"
 [node name="HBoxContainer" type="VBoxContainer" parent="Panel/CenterContainer/VBoxContainer"]
 layout_mode = 2
 theme_override_constants/separation = 20
+alignment = 1
 
 [node name="VBoxContainer" type="HBoxContainer" parent="Panel/CenterContainer/VBoxContainer/HBoxContainer"]
 layout_direction = 2
@@ -167,7 +206,6 @@ theme_override_fonts/font = ExtResource("2_31whf")
 theme_override_font_sizes/font_size = 14
 theme_override_styles/normal = ExtResource("2_qh262")
 theme_override_styles/read_only = ExtResource("2_qh262")
-placeholder_text = "V5CGSP"
 alignment = 1
 max_length = 10
 editable = false
@@ -239,6 +277,28 @@ text = "NOWE"
 [node name="VBoxContainer2" type="VBoxContainer" parent="Panel/CenterContainer/VBoxContainer/HBoxContainer"]
 layout_mode = 2
 
+[node name="HBoxContainer2" type="HBoxContainer" parent="Panel/CenterContainer/VBoxContainer/HBoxContainer/VBoxContainer2"]
+layout_mode = 2
+theme_override_constants/separation = 0
+
+[node name="Label" type="Label" parent="Panel/CenterContainer/VBoxContainer/HBoxContainer/VBoxContainer2/HBoxContainer2"]
+layout_mode = 2
+theme_override_fonts/font = ExtResource("3_1cd5g")
+theme_override_styles/normal = SubResource("StyleBoxEmpty_ylp5r")
+text = "Status: "
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="ItemList2" type="Label" parent="Panel/CenterContainer/VBoxContainer/HBoxContainer/VBoxContainer2/HBoxContainer2"]
+layout_mode = 2
+mouse_default_cursor_shape = 2
+theme_override_colors/font_color = Color(0.67481464, 0.67481464, 0.6748146, 1)
+theme_override_fonts/font = ExtResource("2_31whf")
+theme_override_styles/normal = SubResource("StyleBoxEmpty_3ljwv")
+text = "Oczekiwanie na hosta"
+horizontal_alignment = 1
+vertical_alignment = 1
+
 [node name="HBoxContainer" type="HBoxContainer" parent="Panel/CenterContainer/VBoxContainer/HBoxContainer/VBoxContainer2"]
 layout_mode = 2
 
@@ -251,21 +311,15 @@ text = "Tryb gry:"
 layout_mode = 2
 mouse_default_cursor_shape = 2
 theme_override_fonts/font = ExtResource("2_31whf")
+theme_override_styles/focus = SubResource("StyleBoxEmpty_8p8jx")
+selected = 0
+fit_to_longest_item = false
 allow_reselect = true
-
-[node name="HBoxContainer2" type="HBoxContainer" parent="Panel/CenterContainer/VBoxContainer/HBoxContainer/VBoxContainer2"]
-layout_mode = 2
-
-[node name="Label" type="Label" parent="Panel/CenterContainer/VBoxContainer/HBoxContainer/VBoxContainer2/HBoxContainer2"]
-layout_mode = 2
-theme_override_fonts/font = ExtResource("3_1cd5g")
-text = "Liczba graczy:"
-
-[node name="ItemList2" type="OptionButton" parent="Panel/CenterContainer/VBoxContainer/HBoxContainer/VBoxContainer2/HBoxContainer2"]
-layout_mode = 2
-mouse_default_cursor_shape = 2
-theme_override_fonts/font = ExtResource("2_31whf")
-allow_reselect = true
+item_count = 2
+popup/item_0/text = "AI Master"
+popup/item_0/id = 0
+popup/item_1/text = "AI vs Human"
+popup/item_1/id = 1
 
 [node name="HBoxContainer" type="HBoxContainer" parent="Panel/CenterContainer/VBoxContainer/HBoxContainer"]
 layout_mode = 2
@@ -273,7 +327,10 @@ theme_override_constants/separation = 20
 alignment = 1
 
 [node name="PanelContainer" type="PanelContainer" parent="Panel/CenterContainer/VBoxContainer/HBoxContainer/HBoxContainer"]
+custom_minimum_size = Vector2(220, 150)
 layout_mode = 2
+size_flags_horizontal = 3
+size_flags_stretch_ratio = 0.0
 localize_numeral_system = false
 theme_override_styles/panel = SubResource("StyleBoxFlat_qxwld")
 
@@ -283,18 +340,29 @@ alignment = 1
 
 [node name="Label" type="Label" parent="Panel/CenterContainer/VBoxContainer/HBoxContainer/HBoxContainer/PanelContainer/VBoxContainer"]
 layout_mode = 2
+theme_override_fonts/font = ExtResource("3_1cd5g")
 text = "Drużyna Niebieska"
+horizontal_alignment = 1
+vertical_alignment = 1
 
 [node name="ItemList" type="ItemList" parent="Panel/CenterContainer/VBoxContainer/HBoxContainer/HBoxContainer/PanelContainer/VBoxContainer"]
+custom_minimum_size = Vector2(140, 150)
 layout_mode = 2
+size_flags_vertical = 3
+theme_override_styles/focus = SubResource("StyleBoxEmpty_0nt4m")
+theme_override_styles/selected = SubResource("StyleBoxEmpty_h1efs")
 
 [node name="Button" type="Button" parent="Panel/CenterContainer/VBoxContainer/HBoxContainer/HBoxContainer/PanelContainer/VBoxContainer"]
 layout_mode = 2
 mouse_default_cursor_shape = 2
+theme_override_fonts/font = ExtResource("3_1cd5g")
+theme_override_styles/focus = SubResource("StyleBoxEmpty_splsf")
 text = "DOŁĄCZ"
 
 [node name="PanelContainer2" type="PanelContainer" parent="Panel/CenterContainer/VBoxContainer/HBoxContainer/HBoxContainer"]
+custom_minimum_size = Vector2(220, 0)
 layout_mode = 2
+size_flags_horizontal = 3
 localize_numeral_system = false
 theme_override_styles/panel = SubResource("StyleBoxFlat_p6ldx")
 
@@ -304,34 +372,48 @@ alignment = 1
 
 [node name="Label" type="Label" parent="Panel/CenterContainer/VBoxContainer/HBoxContainer/HBoxContainer/PanelContainer2/VBoxContainer"]
 layout_mode = 2
+theme_override_fonts/font = ExtResource("3_1cd5g")
 text = "Drużyna Czerwona"
+horizontal_alignment = 1
+vertical_alignment = 1
 
 [node name="ItemList" type="ItemList" parent="Panel/CenterContainer/VBoxContainer/HBoxContainer/HBoxContainer/PanelContainer2/VBoxContainer"]
+custom_minimum_size = Vector2(140, 80)
 layout_mode = 2
+size_flags_vertical = 3
+theme_override_styles/focus = SubResource("StyleBoxEmpty_inc6d")
+theme_override_styles/selected = SubResource("StyleBoxEmpty_c62po")
 
 [node name="Button" type="Button" parent="Panel/CenterContainer/VBoxContainer/HBoxContainer/HBoxContainer/PanelContainer2/VBoxContainer"]
 layout_mode = 2
 mouse_default_cursor_shape = 2
+theme_override_fonts/font = ExtResource("3_1cd5g")
+theme_override_styles/focus = SubResource("StyleBoxEmpty_66l4l")
 text = "DOŁĄCZ"
 
 [node name="HBoxContainer2" type="HBoxContainer" parent="Panel/CenterContainer/VBoxContainer/HBoxContainer"]
+custom_minimum_size = Vector2(460, 0)
 layout_mode = 2
-theme_override_constants/separation = 24
+theme_override_constants/separation = 64
 alignment = 1
 
 [node name="LeaveLobby" type="Button" parent="Panel/CenterContainer/VBoxContainer/HBoxContainer/HBoxContainer2"]
 layout_mode = 2
 mouse_default_cursor_shape = 2
-theme_override_styles/normal = ExtResource("4_qh262")
-theme_override_styles/pressed = ExtResource("4_qh262")
+theme_override_colors/font_hover_color = Color(0, 0, 0, 1)
+theme_override_fonts/font = ExtResource("3_1cd5g")
+theme_override_styles/normal = ExtResource("7_qxwld")
+theme_override_styles/pressed = ExtResource("7_qxwld")
 theme_override_styles/hover = ExtResource("5_vomky")
 text = "Opuszczam lobby"
 
 [node name="StartGame" type="Button" parent="Panel/CenterContainer/VBoxContainer/HBoxContainer/HBoxContainer2"]
 layout_mode = 2
 mouse_default_cursor_shape = 2
-theme_override_styles/normal = ExtResource("4_qh262")
-theme_override_styles/pressed = ExtResource("4_qh262")
+theme_override_colors/font_hover_color = Color(0, 0, 0, 1)
+theme_override_fonts/font = ExtResource("3_1cd5g")
+theme_override_styles/normal = ExtResource("7_qxwld")
+theme_override_styles/pressed = ExtResource("7_qxwld")
 theme_override_styles/hover = ExtResource("5_vomky")
 text = "Rozpocznij grę"
 
@@ -355,6 +437,7 @@ expand_icon = true
 script = ExtResource("2_qmux8")
 
 [node name="Control" type="Control" parent="."]
+visible = false
 layout_mode = 1
 anchors_preset = 2
 anchor_top = 1.0
@@ -377,8 +460,8 @@ grow_vertical = 2
 mouse_default_cursor_shape = 2
 theme_override_fonts/font = ExtResource("3_1cd5g")
 theme_override_font_sizes/font_size = 18
-theme_override_styles/normal = ExtResource("4_qh262")
-theme_override_styles/pressed = ExtResource("4_qh262")
+theme_override_styles/normal = ExtResource("7_qxwld")
+theme_override_styles/pressed = ExtResource("7_qxwld")
 theme_override_styles/hover = ExtResource("5_vomky")
 text = "← Menu"
 
@@ -398,6 +481,4 @@ theme_override_fonts/font = ExtResource("3_1cd5g")
 theme_override_font_sizes/font_size = 24
 text = "Wzimniacy"
 
-[connection signal="pressed" from="Panel/CenterContainer/VBoxContainer/HBoxContainer/HBoxContainer2/LeaveLobby" to="." method="_on_leave_lobby_pressed"]
 [connection signal="pressed" from="CreateLobby" to="UIManager" method="OnCreateLobbyButtonPressed"]
-[connection signal="pressed" from="Control/BackButton" to="." method="_on_back_button_pressed"]
