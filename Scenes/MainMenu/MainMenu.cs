@@ -2,10 +2,10 @@ using Godot;
 using System;
 public partial class MainMenu : Control
 {
-    private string LobbyCreateMenuString = "res://Scenes/LobbyCreate/LobbyCreate.tscn";
+    private string LobbyMenuString = "res://Scenes/Lobby/Lobby.tscn";
     private string LobbySearchMenuString = "res://Scenes/LobbySearch/LobbySearch.tscn";
     private EOSManager eosManager;
-    
+
     private Button createButton;
     private Timer animationTimer;
     private int dotCount = 0;
@@ -23,7 +23,7 @@ public partial class MainMenu : Control
         createButton.Pressed += OnCreateGamePressed;
         joinButton.Pressed += OnJoinGamePressed;
         quitButton.Pressed += OnQuitPressed;
-        
+
         // Podłącz sygnał LobbyCreated
         if (eosManager != null)
         {
@@ -34,7 +34,7 @@ public partial class MainMenu : Control
     private void OnCreateGamePressed()
     {
         if (isCreatingLobby) return; // Zapobiegnij wielokrotnemu klikaniu
-        
+
         GD.Print("Creating lobby in background...");
 
         //Opuść obecne lobby jeśli jesteś w jakimś
@@ -46,7 +46,7 @@ public partial class MainMenu : Control
 
         // Rozpocznij animację przycisku
         StartCreatingAnimation();
-        
+
         // Utwórz lobby w tle
         if (eosManager != null)
         {
@@ -54,32 +54,32 @@ public partial class MainMenu : Control
             eosManager.CreateLobby(lobbyId, 10, true);
         }
     }
-    
+
     private void OnLobbyCreated(string lobbyId)
     {
         GD.Print($"✅ Lobby created: {lobbyId}, changing scene...");
-        
+
         // Zatrzymaj animację
         StopCreatingAnimation();
-        
+
         // Poczekaj chwilę na ustawienie atrybutów (0.5s)
         GetTree().CreateTimer(0.5).Timeout += () =>
         {
             // Przejdź do sceny lobby
-            GetTree().ChangeSceneToFile(LobbyCreateMenuString);
+            GetTree().ChangeSceneToFile(LobbyMenuString);
         };
     }
-    
+
     private void StartCreatingAnimation()
     {
         isCreatingLobby = true;
         createButton.Disabled = true;
         dotCount = 0;
-        
+
         // Zapisz oryginalną wysokość przycisku
         float originalHeight = createButton.Size.Y;
         createButton.CustomMinimumSize = new Vector2(0, originalHeight);
-        
+
         // Utwórz timer dla animacji
         animationTimer = new Timer();
         animationTimer.WaitTime = 0.5;
@@ -98,19 +98,19 @@ public partial class MainMenu : Control
         };
         AddChild(timeoutTimer);
         timeoutTimer.Start();
-        
+
         createButton.Text = "Tworzenie";
     }
-    
+
     private void StopCreatingAnimation()
     {
         isCreatingLobby = false;
         createButton.Disabled = false;
         createButton.Text = "Utwórz grę";
-        
+
         // Przywróć automatyczny rozmiar
         createButton.CustomMinimumSize = new Vector2(0, 0);
-        
+
         if (animationTimer != null)
         {
             animationTimer.Stop();
@@ -118,14 +118,14 @@ public partial class MainMenu : Control
             animationTimer = null;
         }
     }
-    
+
     private void OnAnimationTimerTimeout()
     {
         dotCount = (dotCount + 1) % 4; // 0, 1, 2, 3, potem znowu 0
         string dots = new string('.', dotCount);
         createButton.Text = "Tworzenie" + dots;
     }
-    
+
     private string GenerateLobbyIDCode()
     {
         const string chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
@@ -151,7 +151,7 @@ public partial class MainMenu : Control
         GD.Print("Quitting game...");
         GetTree().Quit();
     }
-    
+
     public override void _ExitTree()
     {
         // Odłącz sygnał przy wyjściu
@@ -159,7 +159,7 @@ public partial class MainMenu : Control
         {
             eosManager.LobbyCreated -= OnLobbyCreated;
         }
-        
+
         // Wyczyść timer jeśli istnieje
         if (animationTimer != null)
         {

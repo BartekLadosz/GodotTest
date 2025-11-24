@@ -1,7 +1,7 @@
 using Godot;
 using System;
 
-public partial class LobbyCreateMenu : Control
+public partial class LobbyMenu : Control
 {
     private EOSManager eosManager;
     private Button setNickButton;
@@ -14,7 +14,8 @@ public partial class LobbyCreateMenu : Control
     private Button copyIdButton;
     private Button generateNewIdButton;
     private Button startGameButton;
-    private HBoxContainer gameModeList;
+    private OptionButton gameModeList;
+    private Label gameModeSelectedLabel;
     private string currentLobbyCode = "";
     private const int MaxRetryAttempts = 10;
     private const float RetryDelay = 0.5f;
@@ -40,18 +41,19 @@ public partial class LobbyCreateMenu : Control
             backButton.Pressed += OnBackButtonPressed;
         }
 
-        leaveLobbyButton = GetNode<Button>("Panel/CenterContainer/VBoxContainer/HBoxContainer/HBoxContainer2/LeaveLobby");
+        leaveLobbyButton = GetNode<Button>("Panel/CenterContainer/LobbyMainContainer/LobbyContentContainer/LobbyFuncButtonsContainer/LeaveLobby");
         if (leaveLobbyButton != null)
         {
             leaveLobbyButton.Pressed += OnLeaveLobbyPressed;
         }
 
         // Pobierz elementy UI dla Lobby ID
-        lobbyIdInput = GetNode<LineEdit>("Panel/CenterContainer/VBoxContainer/HBoxContainer/VBoxContainer/InputHolders/LobbyIDInput");
-        copyIdButton = GetNode<Button>("Panel/CenterContainer/VBoxContainer/HBoxContainer/VBoxContainer/ActionButtons/HBoxContainer/CopyIDButton");
-        generateNewIdButton = GetNode<Button>("Panel/CenterContainer/VBoxContainer/HBoxContainer/VBoxContainer/ActionButtons/HBoxContainer/GenerateNewIDButton");
-        startGameButton = GetNode<Button>("Panel/CenterContainer/VBoxContainer/HBoxContainer/HBoxContainer2/StartGame");
-        gameModeList = GetNode<HBoxContainer>("Panel/CenterContainer/VBoxContainer/HBoxContainer/VBoxContainer2/HBoxContainer");
+        lobbyIdInput = GetNode<LineEdit>("Panel/CenterContainer/LobbyMainContainer/LobbyContentContainer/LobbyIDContainer/InputHolders/LobbyIDInput");
+        copyIdButton = GetNode<Button>("Panel/CenterContainer/LobbyMainContainer/LobbyContentContainer/LobbyIDContainer/ActionButtons/HBoxContainer/CopyIDButton");
+        generateNewIdButton = GetNode<Button>("Panel/CenterContainer/LobbyMainContainer/LobbyContentContainer/LobbyIDContainer/ActionButtons/HBoxContainer/GenerateNewIDButton");
+        startGameButton = GetNode<Button>("Panel/CenterContainer/LobbyMainContainer/LobbyContentContainer/LobbyFuncButtonsContainer/StartGame");
+        gameModeList = GetNode<OptionButton>("Panel/CenterContainer/LobbyMainContainer/LobbyContentContainer/LobbySettingsContainer/LobbyGameMode/GameModeList");
+        gameModeSelectedLabel = GetNode<Label>("Panel/CenterContainer/LobbyMainContainer/LobbyContentContainer/LobbySettingsContainer/LobbyGameMode/GameModeSelected");
 
         if (copyIdButton != null)
         {
@@ -63,22 +65,34 @@ public partial class LobbyCreateMenu : Control
             generateNewIdButton.Pressed += OnGenerateNewIdButtonPressed;
         }
 
+        if (gameModeList != null)
+        {
+            gameModeList.ItemSelected += OnSelectedGameModeChanged;
+        }
+
         // Pobierz listy drużyn
-        blueTeamList = GetNode<ItemList>("Panel/CenterContainer/VBoxContainer/HBoxContainer/HBoxContainer/PanelContainer/VBoxContainer/ItemList");
-        redTeamList = GetNode<ItemList>("Panel/CenterContainer/VBoxContainer/HBoxContainer/HBoxContainer/PanelContainer2/VBoxContainer/ItemList");
+        blueTeamList = GetNode<ItemList>("Panel/CenterContainer/LobbyMainContainer/LobbyContentContainer/LobbyTeamsContainer/BlueTeamPanel/BlueTeamContainer/BlueTeamsMembers");
+        redTeamList = GetNode<ItemList>("Panel/CenterContainer/LobbyMainContainer/LobbyContentContainer/LobbyTeamsContainer/RedTeamPanel/RedTeamContainer/RedTeamMembers");
 
         // WAŻNE: Podłącz sygnał z EOSManager do aktualizacji drużyn
         if (eosManager != null)
         {
             eosManager.LobbyMembersUpdated += OnLobbyMembersUpdated;
             eosManager.CustomLobbyIdUpdated += OnCustomLobbyIdUpdated;
-            GD.Print("✅ Connected to LobbyMembersUpdated and CustomLobbyIdUpdated signals");
-            
+            eosManager.GameModeUpdated += OnGameModeUpdated;
+            GD.Print("✅ Connected to LobbyMembersUpdated, CustomLobbyIdUpdated and GameModeUpdated signals");
+
             // Sprawdź obecną wartość CustomLobbyId
             if (!string.IsNullOrEmpty(eosManager.currentCustomLobbyId))
             {
                 GD.Print($"🆔 Current CustomLobbyId in EOSManager: '{eosManager.currentCustomLobbyId}'");
                 OnCustomLobbyIdUpdated(eosManager.currentCustomLobbyId);
+            }
+
+            // Sprawdź obecną wartość GameMode
+            if (!string.IsNullOrEmpty(eosManager.currentGameMode))
+            {
+                OnGameModeUpdated(eosManager.currentGameMode);
             }
         }
         else
@@ -90,11 +104,27 @@ public partial class LobbyCreateMenu : Control
         if (eosManager != null && !string.IsNullOrEmpty(eosManager.currentLobbyId))
         {
             GD.Print($"✅ Already in lobby: {eosManager.currentLobbyId}");
-            // Lobby już istnieje, nic więcej nie rób
+
+            // Wywołaj początkową aktualizację UI na podstawie obecnego stanu
+            CallDeferred(nameof(UpdateUIVisibility));
+
+            // Odśwież listę członków - to wywoła sygnał LobbyMembersUpdated
+            CallDeferred(nameof(RefreshLobbyMembers));
         }
         else
         {
             GD.PrintErr("⚠️ Entered lobby scene but not in any lobby!");
+        }
+    }
+
+    /// <summary>
+    /// Helper do odświeżenia listy członków lobby
+    /// </summary>
+    private void RefreshLobbyMembers()
+    {
+        if (eosManager != null)
+        {
+            eosManager.GetLobbyMembers();
         }
     }
 
@@ -169,18 +199,18 @@ public partial class LobbyCreateMenu : Control
         }
 
         GD.Print($"✅ Teams updated: Blue={blueTeamList.ItemCount}, Red={redTeamList.ItemCount}");
-        
+
         // Zaktualizuj widoczność przycisków dla hosta/gracza
         UpdateUIVisibility();
     }
-    
+
     /// <summary>
     /// Aktualizuje widoczność przycisków w zależności od tego czy jesteśmy hostem
     /// </summary>
     private void UpdateUIVisibility()
     {
         bool isHost = eosManager != null && eosManager.isLobbyOwner;
-        
+
         // Przyciski dostępne TYLKO dla hosta
         if (generateNewIdButton != null)
         {
@@ -196,7 +226,12 @@ public partial class LobbyCreateMenu : Control
         {
             gameModeList.Visible = isHost;
         }
-        
+
+        if (gameModeSelectedLabel != null)
+        {
+            gameModeSelectedLabel.Visible = !isHost;
+        }
+
         GD.Print($"🔧 UI visibility updated: isHost={isHost}");
     }
 
@@ -207,14 +242,14 @@ public partial class LobbyCreateMenu : Control
     {
         GD.Print($"🆔 [SIGNAL] CustomLobbyId updated: '{customLobbyId}'");
         GD.Print($"   lobbyIdInput is null: {lobbyIdInput == null}");
-        
+
         if (lobbyIdInput != null)
         {
             GD.Print($"   Current lobbyIdInput.Text: '{lobbyIdInput.Text}'");
             GD.Print($"   lobbyIdInput.Editable: {lobbyIdInput.Editable}");
             GD.Print($"   lobbyIdInput.PlaceholderText: '{lobbyIdInput.PlaceholderText}'");
         }
-        
+
         // Jeśli CustomLobbyId jest pusty, wyczyść pole
         if (string.IsNullOrEmpty(customLobbyId))
         {
@@ -226,11 +261,11 @@ public partial class LobbyCreateMenu : Control
             GD.Print("🧹 Cleared CustomLobbyId field");
             return;
         }
-        
+
         if (customLobbyId != "Unknown")
         {
             currentLobbyCode = customLobbyId;
-            
+
             if (lobbyIdInput != null)
             {
                 // Użyj CallDeferred aby upewnić się, że UI jest gotowe
@@ -248,6 +283,36 @@ public partial class LobbyCreateMenu : Control
     }
 
     /// <summary>
+    /// Callback wywoływany gdy GameMode zostanie zaktualizowany w EOSManager
+    /// </summary>
+    private void OnGameModeUpdated(string gameMode)
+    {
+        GD.Print($"🎮 [SIGNAL] GameMode updated: '{gameMode}'");
+
+        // Zaktualizuj dropdown (dla hosta)
+        if (gameModeList != null)
+        {
+            // Znajdź indeks odpowiadający trybowi gry
+            for (int i = 0; i < gameModeList.ItemCount; i++)
+            {
+                if (gameModeList.GetItemText(i) == gameMode)
+                {
+                    gameModeList.Selected = i;
+                    GD.Print($"✅ GameMode dropdown updated to: {gameMode} (index: {i})");
+                    break;
+                }
+            }
+        }
+
+        // Zaktualizuj label (dla graczy)
+        if (gameModeSelectedLabel != null)
+        {
+            gameModeSelectedLabel.Text = gameMode;
+            GD.Print($"✅ GameMode label updated to: {gameMode}");
+        }
+    }
+
+    /// <summary>
     /// Aktualizuje wyświetlanie Lobby ID w polu tekstowym
     /// </summary>
     private void UpdateLobbyIdDisplay(string lobbyId)
@@ -256,7 +321,7 @@ public partial class LobbyCreateMenu : Control
         {
             lobbyIdInput.Text = lobbyId;
             GD.Print($"✅ [DEFERRED] Updated Lobby ID input to: '{lobbyIdInput.Text}'");
-            
+
             // Sprawdź czy wartość rzeczywiście się zmieniła
             if (lobbyIdInput.Text != lobbyId)
             {
@@ -295,6 +360,17 @@ public partial class LobbyCreateMenu : Control
         {
             GD.Print("⚠️ Nickname is empty");
         }
+    }
+
+    private void OnSelectedGameModeChanged(long index)
+    {
+        if (gameModeList == null || eosManager == null) return;
+
+        string selectedMode = gameModeList.GetItemText((int)index);
+
+        // Ustaw tryb gry w EOSManager - zostanie zsynchronizowany z innymi graczami
+        eosManager.SetGameMode(selectedMode);
+        GD.Print($"✅ Game mode changed to: {selectedMode} (index: {index})");
     }
 
     private void OnCopyIdButtonPressed()
@@ -409,6 +485,7 @@ public partial class LobbyCreateMenu : Control
         {
             eosManager.LobbyMembersUpdated -= OnLobbyMembersUpdated;
             eosManager.CustomLobbyIdUpdated -= OnCustomLobbyIdUpdated;
+            eosManager.GameModeUpdated -= OnGameModeUpdated;
         }
     }
 }

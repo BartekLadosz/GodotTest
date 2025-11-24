@@ -4,7 +4,7 @@
 [ext_resource type="StyleBox" uid="uid://dgkp41umsnv7g" path="res://Assets/Inputs/InputPlaceHolder.tres" id="2_qh262"]
 [ext_resource type="Script" uid="uid://ce1tsde0jdaka" path="res://Scripts/UI/UiManager.cs" id="2_qmux8"]
 [ext_resource type="FontFile" uid="uid://c65l5c77oy1p5" path="res://Assets/Fonts/Space_Mono/SpaceMono-Bold.ttf" id="3_1cd5g"]
-[ext_resource type="Script" uid="uid://cu2ikiortvp2o" path="res://Scenes/LobbyCreate/LobbyCreateMenu.cs" id="3_create"]
+[ext_resource type="Script" uid="uid://cu2ikiortvp2o" path="res://Scenes/Lobby/LobbyMenu.cs" id="3_lobby"]
 [ext_resource type="StyleBox" uid="uid://col41obfm3t76" path="res://Assets/Buttons/ActionButtonsBorderHover.tres" id="4_31whf"]
 [ext_resource type="StyleBox" uid="uid://xp4ier1dij74" path="res://Assets/Buttons/ActionButtonsBorder.tres" id="5_qxwld"]
 [ext_resource type="StyleBox" uid="uid://c01fbiircsfdi" path="res://Assets/Buttons/button_hover.tres" id="5_vomky"]
@@ -92,14 +92,14 @@ expand_margin_bottom = 2.0
 
 [sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_66l4l"]
 
-[node name="LobbyCreate" type="Control"]
+[node name="Lobby" type="Control"]
 layout_mode = 3
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-script = ExtResource("3_create")
+script = ExtResource("3_lobby")
 
 [node name="Panel" type="ColorRect" parent="."]
 layout_mode = 1
@@ -143,11 +143,11 @@ anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 
-[node name="VBoxContainer" type="VBoxContainer" parent="Panel/CenterContainer"]
+[node name="LobbyMainContainer" type="VBoxContainer" parent="Panel/CenterContainer"]
 layout_mode = 2
 theme_override_constants/separation = 30
 
-[node name="LobbyLabel" type="Label" parent="Panel/CenterContainer/VBoxContainer"]
+[node name="LobbyLabel" type="Label" parent="Panel/CenterContainer/LobbyMainContainer"]
 layout_mode = 2
 theme_override_colors/font_color = Color(0, 1, 0.8, 1)
 theme_override_fonts/font = ExtResource("3_1cd5g")
@@ -157,23 +157,23 @@ horizontal_alignment = 1
 vertical_alignment = 1
 paragraph_separator = "\\"
 
-[node name="HBoxContainer" type="VBoxContainer" parent="Panel/CenterContainer/VBoxContainer"]
+[node name="LobbyContentContainer" type="VBoxContainer" parent="Panel/CenterContainer/LobbyMainContainer"]
 layout_mode = 2
 theme_override_constants/separation = 20
 alignment = 1
 
-[node name="VBoxContainer" type="HBoxContainer" parent="Panel/CenterContainer/VBoxContainer/HBoxContainer"]
+[node name="LobbyIDContainer" type="HBoxContainer" parent="Panel/CenterContainer/LobbyMainContainer/LobbyContentContainer"]
 layout_direction = 2
 layout_mode = 2
 theme_override_constants/separation = 28
 alignment = 1
 
-[node name="Labels" type="VBoxContainer" parent="Panel/CenterContainer/VBoxContainer/HBoxContainer/VBoxContainer"]
+[node name="Labels" type="VBoxContainer" parent="Panel/CenterContainer/LobbyMainContainer/LobbyContentContainer/LobbyIDContainer"]
 layout_mode = 2
 theme_override_constants/separation = 20
 alignment = 1
 
-[node name="LobbyID" type="Label" parent="Panel/CenterContainer/VBoxContainer/HBoxContainer/VBoxContainer/Labels"]
+[node name="LobbyID" type="Label" parent="Panel/CenterContainer/LobbyMainContainer/LobbyContentContainer/LobbyIDContainer/Labels"]
 layout_mode = 2
 theme_override_fonts/font = ExtResource("2_31whf")
 theme_override_font_sizes/font_size = 14
@@ -181,7 +181,7 @@ theme_override_styles/normal = SubResource("StyleBoxEmpty_crh2a")
 text = "LOBBY ID:"
 uppercase = true
 
-[node name="Password" type="Label" parent="Panel/CenterContainer/VBoxContainer/HBoxContainer/VBoxContainer/Labels"]
+[node name="Password" type="Label" parent="Panel/CenterContainer/LobbyMainContainer/LobbyContentContainer/LobbyIDContainer/Labels"]
 visible = false
 layout_mode = 2
 theme_override_fonts/font = ExtResource("2_31whf")
@@ -190,12 +190,12 @@ theme_override_styles/normal = SubResource("StyleBoxEmpty_l2d0o")
 text = "HASŁO:"
 uppercase = true
 
-[node name="InputHolders" type="VBoxContainer" parent="Panel/CenterContainer/VBoxContainer/HBoxContainer/VBoxContainer"]
+[node name="InputHolders" type="VBoxContainer" parent="Panel/CenterContainer/LobbyMainContainer/LobbyContentContainer/LobbyIDContainer"]
 layout_mode = 2
 theme_override_constants/separation = 16
 alignment = 1
 
-[node name="LobbyIDInput" type="LineEdit" parent="Panel/CenterContainer/VBoxContainer/HBoxContainer/VBoxContainer/InputHolders"]
+[node name="LobbyIDInput" type="LineEdit" parent="Panel/CenterContainer/LobbyMainContainer/LobbyContentContainer/LobbyIDContainer/InputHolders"]
 layout_mode = 2
 theme_override_colors/font_color = Color(1, 1, 1, 1)
 theme_override_colors/font_placeholder_color = Color(1, 1, 1, 1)
@@ -211,7 +211,7 @@ max_length = 10
 editable = false
 keep_editing_on_text_submit = true
 
-[node name="PasswordInput" type="LineEdit" parent="Panel/CenterContainer/VBoxContainer/HBoxContainer/VBoxContainer/InputHolders"]
+[node name="PasswordInput" type="LineEdit" parent="Panel/CenterContainer/LobbyMainContainer/LobbyContentContainer/LobbyIDContainer/InputHolders"]
 visible = false
 layout_mode = 2
 theme_override_colors/font_color = Color(1, 1, 1, 1)
@@ -228,16 +228,16 @@ alignment = 1
 max_length = 10
 editable = false
 
-[node name="ActionButtons" type="VBoxContainer" parent="Panel/CenterContainer/VBoxContainer/HBoxContainer/VBoxContainer"]
+[node name="ActionButtons" type="VBoxContainer" parent="Panel/CenterContainer/LobbyMainContainer/LobbyContentContainer/LobbyIDContainer"]
 layout_mode = 2
 theme_override_constants/separation = 30
 alignment = 1
 
-[node name="HBoxContainer" type="HBoxContainer" parent="Panel/CenterContainer/VBoxContainer/HBoxContainer/VBoxContainer/ActionButtons"]
+[node name="HBoxContainer" type="HBoxContainer" parent="Panel/CenterContainer/LobbyMainContainer/LobbyContentContainer/LobbyIDContainer/ActionButtons"]
 layout_mode = 2
 theme_override_constants/separation = 22
 
-[node name="CopyIDButton" type="Button" parent="Panel/CenterContainer/VBoxContainer/HBoxContainer/VBoxContainer/ActionButtons/HBoxContainer"]
+[node name="CopyIDButton" type="Button" parent="Panel/CenterContainer/LobbyMainContainer/LobbyContentContainer/LobbyIDContainer/ActionButtons/HBoxContainer"]
 layout_mode = 2
 mouse_default_cursor_shape = 2
 theme_override_fonts/font = ExtResource("2_31whf")
@@ -249,7 +249,7 @@ theme_override_styles/disabled = SubResource("StyleBoxEmpty_qxwld")
 theme_override_styles/focus = SubResource("StyleBoxEmpty_p6ldx")
 text = "KOPIUJ"
 
-[node name="GenerateNewIDButton" type="Button" parent="Panel/CenterContainer/VBoxContainer/HBoxContainer/VBoxContainer/ActionButtons/HBoxContainer"]
+[node name="GenerateNewIDButton" type="Button" parent="Panel/CenterContainer/LobbyMainContainer/LobbyContentContainer/LobbyIDContainer/ActionButtons/HBoxContainer"]
 layout_mode = 2
 mouse_default_cursor_shape = 2
 theme_override_fonts/font = ExtResource("2_31whf")
@@ -261,7 +261,7 @@ theme_override_styles/disabled = SubResource("StyleBoxEmpty_qxwld")
 theme_override_styles/focus = SubResource("StyleBoxEmpty_p6ldx")
 text = "NOWE"
 
-[node name="GeneratePass" type="Button" parent="Panel/CenterContainer/VBoxContainer/HBoxContainer/VBoxContainer/ActionButtons"]
+[node name="GeneratePass" type="Button" parent="Panel/CenterContainer/LobbyMainContainer/LobbyContentContainer/LobbyIDContainer/ActionButtons"]
 visible = false
 layout_mode = 2
 mouse_default_cursor_shape = 2
@@ -274,14 +274,14 @@ theme_override_styles/disabled = SubResource("StyleBoxEmpty_flr5y")
 theme_override_styles/focus = SubResource("StyleBoxEmpty_cotl6")
 text = "NOWE"
 
-[node name="VBoxContainer2" type="VBoxContainer" parent="Panel/CenterContainer/VBoxContainer/HBoxContainer"]
+[node name="LobbySettingsContainer" type="VBoxContainer" parent="Panel/CenterContainer/LobbyMainContainer/LobbyContentContainer"]
 layout_mode = 2
 
-[node name="HBoxContainer2" type="HBoxContainer" parent="Panel/CenterContainer/VBoxContainer/HBoxContainer/VBoxContainer2"]
+[node name="LobbyStatus" type="HBoxContainer" parent="Panel/CenterContainer/LobbyMainContainer/LobbyContentContainer/LobbySettingsContainer"]
 layout_mode = 2
 theme_override_constants/separation = 0
 
-[node name="Label" type="Label" parent="Panel/CenterContainer/VBoxContainer/HBoxContainer/VBoxContainer2/HBoxContainer2"]
+[node name="StatusLabel" type="Label" parent="Panel/CenterContainer/LobbyMainContainer/LobbyContentContainer/LobbySettingsContainer/LobbyStatus"]
 layout_mode = 2
 theme_override_fonts/font = ExtResource("3_1cd5g")
 theme_override_styles/normal = SubResource("StyleBoxEmpty_ylp5r")
@@ -289,7 +289,7 @@ text = "Status: "
 horizontal_alignment = 1
 vertical_alignment = 1
 
-[node name="ItemList2" type="Label" parent="Panel/CenterContainer/VBoxContainer/HBoxContainer/VBoxContainer2/HBoxContainer2"]
+[node name="Status" type="Label" parent="Panel/CenterContainer/LobbyMainContainer/LobbyContentContainer/LobbySettingsContainer/LobbyStatus"]
 layout_mode = 2
 mouse_default_cursor_shape = 2
 theme_override_colors/font_color = Color(0.67481464, 0.67481464, 0.6748146, 1)
@@ -299,15 +299,15 @@ text = "Oczekiwanie na hosta"
 horizontal_alignment = 1
 vertical_alignment = 1
 
-[node name="HBoxContainer" type="HBoxContainer" parent="Panel/CenterContainer/VBoxContainer/HBoxContainer/VBoxContainer2"]
+[node name="LobbyGameMode" type="HBoxContainer" parent="Panel/CenterContainer/LobbyMainContainer/LobbyContentContainer/LobbySettingsContainer"]
 layout_mode = 2
 
-[node name="Label" type="Label" parent="Panel/CenterContainer/VBoxContainer/HBoxContainer/VBoxContainer2/HBoxContainer"]
+[node name="GameModeLabel" type="Label" parent="Panel/CenterContainer/LobbyMainContainer/LobbyContentContainer/LobbySettingsContainer/LobbyGameMode"]
 layout_mode = 2
 theme_override_fonts/font = ExtResource("3_1cd5g")
 text = "Tryb gry:"
 
-[node name="ItemList" type="OptionButton" parent="Panel/CenterContainer/VBoxContainer/HBoxContainer/VBoxContainer2/HBoxContainer"]
+[node name="GameModeList" type="OptionButton" parent="Panel/CenterContainer/LobbyMainContainer/LobbyContentContainer/LobbySettingsContainer/LobbyGameMode"]
 layout_mode = 2
 mouse_default_cursor_shape = 2
 theme_override_fonts/font = ExtResource("2_31whf")
@@ -321,12 +321,22 @@ popup/item_0/id = 0
 popup/item_1/text = "AI vs Human"
 popup/item_1/id = 1
 
-[node name="HBoxContainer" type="HBoxContainer" parent="Panel/CenterContainer/VBoxContainer/HBoxContainer"]
+[node name="GameModeSelected" type="Label" parent="Panel/CenterContainer/LobbyMainContainer/LobbyContentContainer/LobbySettingsContainer/LobbyGameMode"]
+visible = false
+layout_mode = 2
+mouse_default_cursor_shape = 2
+theme_override_colors/font_color = Color(0.67481464, 0.67481464, 0.6748146, 1)
+theme_override_fonts/font = ExtResource("2_31whf")
+theme_override_styles/normal = SubResource("StyleBoxEmpty_3ljwv")
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="LobbyTeamsContainer" type="HBoxContainer" parent="Panel/CenterContainer/LobbyMainContainer/LobbyContentContainer"]
 layout_mode = 2
 theme_override_constants/separation = 20
 alignment = 1
 
-[node name="PanelContainer" type="PanelContainer" parent="Panel/CenterContainer/VBoxContainer/HBoxContainer/HBoxContainer"]
+[node name="BlueTeamPanel" type="PanelContainer" parent="Panel/CenterContainer/LobbyMainContainer/LobbyContentContainer/LobbyTeamsContainer"]
 custom_minimum_size = Vector2(220, 150)
 layout_mode = 2
 size_flags_horizontal = 3
@@ -334,70 +344,70 @@ size_flags_stretch_ratio = 0.0
 localize_numeral_system = false
 theme_override_styles/panel = SubResource("StyleBoxFlat_qxwld")
 
-[node name="VBoxContainer" type="VBoxContainer" parent="Panel/CenterContainer/VBoxContainer/HBoxContainer/HBoxContainer/PanelContainer"]
+[node name="BlueTeamContainer" type="VBoxContainer" parent="Panel/CenterContainer/LobbyMainContainer/LobbyContentContainer/LobbyTeamsContainer/BlueTeamPanel"]
 layout_mode = 2
 alignment = 1
 
-[node name="Label" type="Label" parent="Panel/CenterContainer/VBoxContainer/HBoxContainer/HBoxContainer/PanelContainer/VBoxContainer"]
+[node name="BlueTeamLabel" type="Label" parent="Panel/CenterContainer/LobbyMainContainer/LobbyContentContainer/LobbyTeamsContainer/BlueTeamPanel/BlueTeamContainer"]
 layout_mode = 2
 theme_override_fonts/font = ExtResource("3_1cd5g")
 text = "Drużyna Niebieska"
 horizontal_alignment = 1
 vertical_alignment = 1
 
-[node name="ItemList" type="ItemList" parent="Panel/CenterContainer/VBoxContainer/HBoxContainer/HBoxContainer/PanelContainer/VBoxContainer"]
+[node name="BlueTeamsMembers" type="ItemList" parent="Panel/CenterContainer/LobbyMainContainer/LobbyContentContainer/LobbyTeamsContainer/BlueTeamPanel/BlueTeamContainer"]
 custom_minimum_size = Vector2(140, 150)
 layout_mode = 2
 size_flags_vertical = 3
 theme_override_styles/focus = SubResource("StyleBoxEmpty_0nt4m")
 theme_override_styles/selected = SubResource("StyleBoxEmpty_h1efs")
 
-[node name="Button" type="Button" parent="Panel/CenterContainer/VBoxContainer/HBoxContainer/HBoxContainer/PanelContainer/VBoxContainer"]
+[node name="BlueTeamJoinButton" type="Button" parent="Panel/CenterContainer/LobbyMainContainer/LobbyContentContainer/LobbyTeamsContainer/BlueTeamPanel/BlueTeamContainer"]
 layout_mode = 2
 mouse_default_cursor_shape = 2
 theme_override_fonts/font = ExtResource("3_1cd5g")
 theme_override_styles/focus = SubResource("StyleBoxEmpty_splsf")
 text = "DOŁĄCZ"
 
-[node name="PanelContainer2" type="PanelContainer" parent="Panel/CenterContainer/VBoxContainer/HBoxContainer/HBoxContainer"]
+[node name="RedTeamPanel" type="PanelContainer" parent="Panel/CenterContainer/LobbyMainContainer/LobbyContentContainer/LobbyTeamsContainer"]
 custom_minimum_size = Vector2(220, 0)
 layout_mode = 2
 size_flags_horizontal = 3
 localize_numeral_system = false
 theme_override_styles/panel = SubResource("StyleBoxFlat_p6ldx")
 
-[node name="VBoxContainer" type="VBoxContainer" parent="Panel/CenterContainer/VBoxContainer/HBoxContainer/HBoxContainer/PanelContainer2"]
+[node name="RedTeamContainer" type="VBoxContainer" parent="Panel/CenterContainer/LobbyMainContainer/LobbyContentContainer/LobbyTeamsContainer/RedTeamPanel"]
 layout_mode = 2
 alignment = 1
 
-[node name="Label" type="Label" parent="Panel/CenterContainer/VBoxContainer/HBoxContainer/HBoxContainer/PanelContainer2/VBoxContainer"]
+[node name="RedTeamLabel" type="Label" parent="Panel/CenterContainer/LobbyMainContainer/LobbyContentContainer/LobbyTeamsContainer/RedTeamPanel/RedTeamContainer"]
 layout_mode = 2
 theme_override_fonts/font = ExtResource("3_1cd5g")
 text = "Drużyna Czerwona"
 horizontal_alignment = 1
 vertical_alignment = 1
 
-[node name="ItemList" type="ItemList" parent="Panel/CenterContainer/VBoxContainer/HBoxContainer/HBoxContainer/PanelContainer2/VBoxContainer"]
+[node name="RedTeamMembers" type="ItemList" parent="Panel/CenterContainer/LobbyMainContainer/LobbyContentContainer/LobbyTeamsContainer/RedTeamPanel/RedTeamContainer"]
 custom_minimum_size = Vector2(140, 80)
 layout_mode = 2
 size_flags_vertical = 3
 theme_override_styles/focus = SubResource("StyleBoxEmpty_inc6d")
 theme_override_styles/selected = SubResource("StyleBoxEmpty_c62po")
 
-[node name="Button" type="Button" parent="Panel/CenterContainer/VBoxContainer/HBoxContainer/HBoxContainer/PanelContainer2/VBoxContainer"]
+[node name="RedTeamJoinButton" type="Button" parent="Panel/CenterContainer/LobbyMainContainer/LobbyContentContainer/LobbyTeamsContainer/RedTeamPanel/RedTeamContainer"]
 layout_mode = 2
 mouse_default_cursor_shape = 2
 theme_override_fonts/font = ExtResource("3_1cd5g")
 theme_override_styles/focus = SubResource("StyleBoxEmpty_66l4l")
 text = "DOŁĄCZ"
 
-[node name="HBoxContainer2" type="HBoxContainer" parent="Panel/CenterContainer/VBoxContainer/HBoxContainer"]
+[node name="LobbyFuncButtonsContainer" type="HBoxContainer" parent="Panel/CenterContainer/LobbyMainContainer/LobbyContentContainer"]
 custom_minimum_size = Vector2(460, 0)
 layout_mode = 2
 theme_override_constants/separation = 64
 alignment = 1
 
-[node name="LeaveLobby" type="Button" parent="Panel/CenterContainer/VBoxContainer/HBoxContainer/HBoxContainer2"]
+[node name="LeaveLobby" type="Button" parent="Panel/CenterContainer/LobbyMainContainer/LobbyContentContainer/LobbyFuncButtonsContainer"]
 layout_mode = 2
 mouse_default_cursor_shape = 2
 theme_override_colors/font_hover_color = Color(0, 0, 0, 1)
@@ -407,7 +417,7 @@ theme_override_styles/pressed = ExtResource("7_qxwld")
 theme_override_styles/hover = ExtResource("5_vomky")
 text = "Opuszczam lobby"
 
-[node name="StartGame" type="Button" parent="Panel/CenterContainer/VBoxContainer/HBoxContainer/HBoxContainer2"]
+[node name="StartGame" type="Button" parent="Panel/CenterContainer/LobbyMainContainer/LobbyContentContainer/LobbyFuncButtonsContainer"]
 layout_mode = 2
 mouse_default_cursor_shape = 2
 theme_override_colors/font_hover_color = Color(0, 0, 0, 1)

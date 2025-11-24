@@ -15,9 +15,9 @@
 
 Skrypty specyficzne dla poszczególnych scen znajdują się w folderach `Scenes/`:
 
-- `Scenes/MainMenu/MainMenu.gd` - Logika menu głównego
-- `Scenes/LobbyCreate/LobbyCreateMenu.gd` - Logika tworzenia lobby
-- `Scenes/LobbySearch/LobbySearchMenu.gd` - Logika wyszukiwania lobby
+- `Scenes/MainMenu/MainMenu.cs` - Logika menu głównego
+- `Scenes/Lobby/LobbyMenu.cs` - Logika lobby (tworzenie i zarządzanie)
+- `Scenes/LobbySearch/LobbySearchMenu.cs` - Logika wyszukiwania lobby
 
 ## Project Structure
 
@@ -25,13 +25,13 @@ Skrypty specyficzne dla poszczególnych scen znajdują się w folderach `Scenes/
 Scenes/
 ├── MainMenu/
 │   ├── main.tscn          # Menu główne
-│   └── MainMenu.gd        # Logika menu głównego
-├── LobbyCreate/
-│   ├── LobbyCreate.tscn   # Tworzenie lobby
-│   └── LobbyCreateMenu.gd # Logika tworzenia lobby
+│   └── MainMenu.cs        # Logika menu głównego
+├── Lobby/
+│   ├── Lobby.tscn         # Scena lobby
+│   └── LobbyMenu.cs       # Logika lobby
 └── LobbySearch/
     ├── LobbySearch.tscn   # Wyszukiwanie lobby
-    └── LobbySearchMenu.gd # Logika wyszukiwania lobby
+    └── LobbySearchMenu.cs # Logika wyszukiwania lobby
 
 Scripts/
 ├── EOSManager.cs          # Manager EOS (autoload)

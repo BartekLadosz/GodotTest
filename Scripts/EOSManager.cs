@@ -38,6 +38,9 @@ public partial class EOSManager : Node
 	[Signal]
 	public delegate void CustomLobbyIdUpdatedEventHandler(string customLobbyId);
 
+	[Signal]
+	public delegate void GameModeUpdatedEventHandler(string gameMode);
+
 	// Dane produktu
 	private string productName = "WZIMniacy";
 	private string productVersion = "1.0";
@@ -74,6 +77,9 @@ public partial class EOSManager : Node
 
 	// Custom Lobby ID (6-znakowy kod do wyszukiwania)
 	public string currentCustomLobbyId = "";
+
+	// Current Game Mode (tryb gry)
+	public string currentGameMode = "AI Master";
 
 	// Aktualna lista członków lobby (cache)
 	private Godot.Collections.Array<Godot.Collections.Dictionary> currentLobbyMembers = new Godot.Collections.Array<Godot.Collections.Dictionary>();
@@ -657,7 +663,7 @@ public partial class EOSManager : Node
 			GetTree().CreateTimer(0.5).Timeout += () =>
 			{
 				SetLobbyAttribute("CustomLobbyId", currentCustomLobbyId);
-				
+
 				// Wyślij sygnał o aktualizacji CustomLobbyId
 				EmitSignal(SignalName.CustomLobbyIdUpdated, currentCustomLobbyId);
 			};
@@ -680,7 +686,7 @@ public partial class EOSManager : Node
 					{
 						GD.Print("🎲 Host auto-assigning to Blue team...");
 						SetMemberAttribute("Team", "Blue"); // Host zawsze Blue
-						
+
 						// Po ustawieniu drużyny, odśwież listę członków
 						GetTree().CreateTimer(1.0).Timeout += () =>
 						{
@@ -696,7 +702,7 @@ public partial class EOSManager : Node
 				{
 					GD.Print("🎲 Host auto-assigning to Blue team...");
 					SetMemberAttribute("Team", "Blue"); // Host zawsze Blue
-					
+
 					// Po ustawieniu drużyny, odśwież listę członków
 					GetTree().CreateTimer(1.0).Timeout += () =>
 					{
@@ -992,7 +998,7 @@ public partial class EOSManager : Node
 			else
 			{
 				GD.PrintErr($"❌ Cannot join: Lobby with custom ID '{customLobbyId}' not found!");
-				
+
 				// Wyślij sygnał o błędzie do UI
 				EmitSignal(SignalName.LobbyJoinFailed, $"Lobby '{customLobbyId}' nie istnieje");
 			}
@@ -1069,68 +1075,66 @@ public partial class EOSManager : Node
 			// Zapisz obecne lobby
 			currentLobbyId = data.LobbyId.ToString();
 			isLobbyOwner = false;
-			
+
 			// KROK 1: Skopiuj LobbyDetails handle natychmiast
 			CacheCurrentLobbyDetailsHandle("join");
 
-			// KROK 2: Poczekaj na synchronizację danych z backendu (1.5s)
-			GetTree().CreateTimer(1.5).Timeout += () =>
+			// KROK 2: Poczekaj na synchronizację danych z backendu (0.5s zamiast 1.5s)
+			GetTree().CreateTimer(0.5).Timeout += () =>
 			{
-				GD.Print("🔄 [STEP 1/3] Refreshing lobby info and CustomLobbyId...");
-				
+				GD.Print("🔄 [STEP 1/5] Refreshing lobby info and CustomLobbyId...");
+
 				// Odśwież handle aby mieć najświeższe dane
 				CacheCurrentLobbyDetailsHandle("refresh_after_join");
-				
+
 				// Odśwież informacje o lobby (łącznie z CustomLobbyId)
 				RefreshCurrentLobbyInfo();
-				
-				// Pobierz listę członków
-				GetTree().CreateTimer(0.5).Timeout += () =>
+
+				// KROK 3: Pobierz członków NAJPIERW (żeby AutoAssignMyTeam miał dane)
+				GetTree().CreateTimer(0.3).Timeout += () =>
 				{
-					GD.Print("🔄 [STEP 2/3] Fetching lobby members...");
+					GD.Print("🔄 [STEP 2/5] Fetching current lobby members...");
 					GetLobbyMembers();
-					
-					// KROK 3: Wyślij sygnał do UI (zmień scenę) - PO SYNCHRONIZACJI
-					GetTree().CreateTimer(0.5).Timeout += () =>
+
+					// KROK 4: Ustaw nickname i przypisz drużynę (teraz mamy już listę członków)
+					GetTree().CreateTimer(0.3).Timeout += () =>
 					{
-						GD.Print("✅ [STEP 3/3] Synchronization complete, emitting LobbyJoined signal");
-						EmitSignal(SignalName.LobbyJoined, currentLobbyId);
+						GD.Print("🔄 [STEP 3/5] Setting nickname and team...");
+
+						// Najpierw ustaw nickname (jeśli został ustawiony)
+						if (!string.IsNullOrEmpty(pendingNickname))
+						{
+							GD.Print($"📝 Setting nickname: {pendingNickname}");
+							SetMemberAttribute("Nickname", pendingNickname);
+						}
+
+						// Automatycznie przypisz się do drużyny (balansowanie)
+						AutoAssignMyTeam();
+
+						// KROK 5: Odczekaj na propagację atrybutów, potem pobierz członków ponownie
+						GetTree().CreateTimer(0.6).Timeout += () =>
+						{
+							GD.Print("🔄 [STEP 4/5] Refreshing members with team assignments...");
+							GetLobbyMembers();
+
+							// KROK 6: Wyślij sygnał do UI (zmień scenę)
+							GetTree().CreateTimer(0.3).Timeout += () =>
+							{
+								GD.Print("✅ [STEP 5/5] All synchronization complete, emitting LobbyJoined signal");
+								EmitSignal(SignalName.LobbyJoined, currentLobbyId);
+							};
+						};
 					};
 				};
 			};
 
-			// KROK 4: Ustaw nickname i drużynę jako member attributes
-			GetTree().CreateTimer(3.0).Timeout += () =>
-			{
-				// Najpierw ustaw nickname (jeśli został ustawiony)
-				if (!string.IsNullOrEmpty(pendingNickname))
-				{
-					GD.Print($"📝 Setting nickname: {pendingNickname}");
-					SetMemberAttribute("Nickname", pendingNickname);
-				}
-				
-				// Automatycznie przypisz się do drużyny (balansowanie)
-				GetTree().CreateTimer(0.5).Timeout += () =>
-				{
-					GD.Print("🎲 Auto-assigning team...");
-					AutoAssignMyTeam();
-					
-					// Po ustawieniu drużyny, odśwież listę członków
-					GetTree().CreateTimer(1.0).Timeout += () =>
-					{
-						GD.Print("🔄 [TEAM] Refreshing lobby members after team assignment...");
-						GetLobbyMembers();
-					};
-				};
-			};
-
-			// KROK 5: Wykonaj pełne wyszukiwanie w tle (dla synchronizacji)
+			// KROK 7: Wykonaj pełne wyszukiwanie w tle (dla synchronizacji)
 			CallDeferred(nameof(SearchLobbiesAndRefresh));
 		}
 		else
 		{
 			GD.PrintErr($"❌ Failed to join lobby: {data.ResultCode}");
-			
+
 			// Wyślij sygnał o błędzie do UI
 			string errorMessage = data.ResultCode switch
 			{
@@ -1139,7 +1143,7 @@ public partial class EOSManager : Node
 				Result.NoConnection => "Brak połączenia z serwerem",
 				_ => $"Błąd: {data.ResultCode}"
 			};
-			
+
 			EmitSignal(SignalName.LobbyJoinFailed, errorMessage);
 		}
 	}
@@ -1327,15 +1331,17 @@ public partial class EOSManager : Node
 			// Wyczyść obecne lobby
 			currentLobbyId = null;
 			isLobbyOwner = false;
-			
+
 			// Wyczyść CustomLobbyId
 			currentCustomLobbyId = "";
 			EmitSignal(SignalName.CustomLobbyIdUpdated, "");
 
-			// Wyczyść cache członków
-			currentLobbyMembers.Clear();
+			// Wyczyść GameMode
+			currentGameMode = "AI Master";
+			EmitSignal(SignalName.GameModeUpdated, currentGameMode);
 
-			// Wyczyść flagę tworzenia (na wszelki wypadek)
+			// Wyczyść cache członków
+			currentLobbyMembers.Clear();            // Wyczyść flagę tworzenia (na wszelki wypadek)
 			isCreatingLobby = false;
 
 			// Wyślij sygnał do UI
@@ -1537,8 +1543,8 @@ public partial class EOSManager : Node
 				(int)info.Value.MaxMembers,
 				isLobbyOwner);
 
-				// NOWE: Odśwież CustomLobbyId z atrybutów lobby
-				RefreshCustomLobbyId(lobbyDetails);
+				// Odśwież atrybuty lobby (CustomLobbyId, GameMode, etc.)
+				RefreshLobbyAttributes(lobbyDetails);
 			}
 		}
 		else
@@ -1548,9 +1554,9 @@ public partial class EOSManager : Node
 	}
 
 	/// <summary>
-	/// Odświeża CustomLobbyId z atrybutów lobby
+	/// Odświeża atrybuty lobby (CustomLobbyId, GameMode) z EOS
 	/// </summary>
-	private void RefreshCustomLobbyId(LobbyDetails lobbyDetails)
+	private void RefreshLobbyAttributes(LobbyDetails lobbyDetails)
 	{
 		if (lobbyDetails == null) return;
 
@@ -1558,7 +1564,10 @@ public partial class EOSManager : Node
 		var attrCountOptions = new LobbyDetailsGetAttributeCountOptions();
 		uint attributeCount = lobbyDetails.GetAttributeCount(ref attrCountOptions);
 
-		GD.Print($"🔄 Refreshing CustomLobbyId from {attributeCount} lobby attributes...");
+		GD.Print($"🔄 Refreshing lobby attributes from {attributeCount} attributes...");
+
+		bool customIdFound = false;
+		bool gameModeFound = false;
 
 		// Iteruj po wszystkich atrybutach lobby
 		for (uint i = 0; i < attributeCount; i++)
@@ -1574,7 +1583,7 @@ public partial class EOSManager : Node
 				if (keyStr != null && keyStr.Equals("CustomLobbyId", StringComparison.OrdinalIgnoreCase))
 				{
 					string newCustomLobbyId = !string.IsNullOrEmpty(valueStr) ? valueStr : "Unknown";
-					
+
 					// Tylko zaktualizuj jeśli się zmienił
 					if (currentCustomLobbyId != newCustomLobbyId)
 					{
@@ -1582,15 +1591,42 @@ public partial class EOSManager : Node
 						GD.Print($"✅ CustomLobbyId refreshed: {currentCustomLobbyId}");
 						EmitSignal(SignalName.CustomLobbyIdUpdated, currentCustomLobbyId);
 					}
-					return;
+					customIdFound = true;
+				}
+				else if (keyStr != null && keyStr.Equals("GameMode", StringComparison.OrdinalIgnoreCase))
+				{
+					string newGameMode = !string.IsNullOrEmpty(valueStr) ? valueStr : "AI Master";
+
+					// Tylko zaktualizuj jeśli się zmienił
+					if (currentGameMode != newGameMode)
+					{
+						currentGameMode = newGameMode;
+						GD.Print($"✅ GameMode refreshed: {currentGameMode}");
+						EmitSignal(SignalName.GameModeUpdated, currentGameMode);
+					}
+					gameModeFound = true;
+				}
+
+				// Jeśli znaleźliśmy oba, możemy przerwać pętlę
+				if (customIdFound && gameModeFound)
+				{
+					break;
 				}
 			}
 		}
 
 		// Jeśli nie znaleziono CustomLobbyId
-		if (string.IsNullOrEmpty(currentCustomLobbyId) || currentCustomLobbyId == "Unknown")
+		if (!customIdFound && (string.IsNullOrEmpty(currentCustomLobbyId) || currentCustomLobbyId == "Unknown"))
 		{
 			GD.PrintErr("⚠️ CustomLobbyId not found in lobby attributes");
+		}
+
+		// Jeśli nie znaleziono GameMode, ustaw domyślny
+		if (!gameModeFound && currentGameMode != "AI Master")
+		{
+			currentGameMode = "AI Master";
+			EmitSignal(SignalName.GameModeUpdated, currentGameMode);
+			GD.Print("⚠️ GameMode not found, using default: AI Master");
 		}
 	}
 
@@ -1616,6 +1652,14 @@ public partial class EOSManager : Node
 		SetLobbyAttribute("CustomLobbyId", newCustomId);
 
 		GD.Print($"🆔 Setting CustomLobbyId to: {newCustomId}");
+	}
+
+	public void SetGameMode(string gameMode)
+	{
+		SetLobbyAttribute("GameMode", gameMode);
+		currentGameMode = gameMode;
+
+		GD.Print($"🎮 Setting GameMode to: {gameMode}");
 	}
 
 	// ============================================
@@ -1781,6 +1825,14 @@ public partial class EOSManager : Node
 	/// <summary>
 	/// Pobiera listę członków obecnego lobby i wysyła sygnał do UI
 	/// </summary>
+	/// <summary>
+	/// Zwraca aktualną listę członków lobby (cache)
+	/// </summary>
+	public Godot.Collections.Array<Godot.Collections.Dictionary> GetCurrentLobbyMembers()
+	{
+		return currentLobbyMembers;
+	}
+
 	public void GetLobbyMembers()
 	{
 		if (string.IsNullOrEmpty(currentLobbyId))
@@ -1856,7 +1908,7 @@ public partial class EOSManager : Node
 					{
 						string keyStr = attribute.Value.Data.Value.Key;
 						string valueStr = attribute.Value.Data.Value.Value.AsUtf8;
-						
+
 						GD.Print($"      Attribute: {keyStr} = {valueStr}");
 
 						// Pobierz Nickname
@@ -1865,7 +1917,7 @@ public partial class EOSManager : Node
 							displayName = valueStr;
 							foundNickname = true;
 						}
-						
+
 						// Pobierz Team
 						if (keyStr != null && keyStr.Equals("Team", System.StringComparison.OrdinalIgnoreCase))
 						{
@@ -1915,34 +1967,56 @@ public partial class EOSManager : Node
 		// SORTOWANIE: Posortuj po userId (Product User ID) aby wszyscy widzieli tę samą kolejność
 		// Host ma zawsze pierwszy/najniższy ID w lobby, więc będzie na górze
 		// Kolejni gracze będą dodawani w kolejności ich Product User ID
-		
+
 		// Przekonwertuj Godot.Collections.Array na List<>
 		var sortedMembers = new List<Godot.Collections.Dictionary>();
 		foreach (var member in membersList)
 		{
 			sortedMembers.Add(member);
 		}
-		
+
 		// Sortuj po userId
-		sortedMembers.Sort((a, b) => 
+		sortedMembers.Sort((a, b) =>
 			string.Compare(a["userId"].ToString(), b["userId"].ToString(), System.StringComparison.Ordinal)
 		);
-		
+
 		// Wyczyść i przepisz posortowane elementy
 		membersList.Clear();
 		foreach (var member in sortedMembers)
 		{
 			membersList.Add(member);
 		}
-		
+
 		// Zapisz do cache
 		currentLobbyMembers = membersList;
+
+		// Sprawdź czy lokalny gracz jest właścicielem (dla automatycznej promocji)
+		bool wasOwner = isLobbyOwner;
+		isLobbyOwner = false; // Najpierw resetuj
+
+		foreach (var member in membersList)
+		{
+			bool isLocalPlayer = (bool)member["isLocalPlayer"];
+			bool isOwner = (bool)member["isOwner"];
+
+			if (isLocalPlayer && isOwner)
+			{
+				isLobbyOwner = true;
+
+				// Jeśli staliśmy się właścicielem (awans po opuszczeniu przez hosta)
+				if (!wasOwner)
+				{
+					GD.Print("👑 ✅ You have been promoted to lobby owner!");
+				}
+				break;
+			}
+		}
 
 		// Wyślij sygnał do UI
 		EmitSignal(SignalName.LobbyMembersUpdated, membersList);
 
 		// Aktualizuj licznik graczy
-		EmitSignal(SignalName.CurrentLobbyInfoUpdated, currentLobbyId, membersList.Count, 4, isLobbyOwner);
+		EmitSignal(SignalName.CurrentLobbyInfoUpdated, currentLobbyId, membersList.Count, 10, isLobbyOwner);
 	}   /// <summary>
 		/// Ustawia DisplayName dla lokalnego gracza jako MEMBER ATTRIBUTE
 		/// Player A ustawia swoje atrybuty → Player B je odczytuje → wyświetla nick A
