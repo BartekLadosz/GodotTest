@@ -2,11 +2,15 @@ using Godot;
 using System;
 public partial class MainMenu : Control
 {
-    private string LobbyMenuString = "res://Scenes/Lobby/Lobby.tscn";
-    private string LobbySearchMenuString = "res://Scenes/LobbySearch/LobbySearch.tscn";
+    private const string LobbyMenuString = "res://Scenes/Lobby/Lobby.tscn";
+    private const string LobbySearchMenuString = "res://Scenes/LobbySearch/LobbySearch.tscn";
+    private const string SettingsSceneString = "res://Scenes/Settings/Settings.tscn";
+    private const string HelpSceneString = "res://Scenes/Help/Help.tscn";
     private EOSManager eosManager;
 
     private Button createButton;
+    private Button settingsButton;
+    private Button helpButton;
     private Timer animationTimer;
     private int dotCount = 0;
     private bool isCreatingLobby = false;
@@ -17,12 +21,16 @@ public partial class MainMenu : Control
         createButton = GetNode<Button>("Panel/MenuCenter/VMenu/CreateGame/CreateGameButton");
         Button joinButton = GetNode<Button>("Panel/MenuCenter/VMenu/JoinGame/JoinGameButton");
         Button quitButton = GetNode<Button>("Panel/MenuCenter/VMenu/Quit/QuitButton");
+        settingsButton = GetNode<Button>("Panel/MenuCenter/VMenu/Settings/SettingsButton");
+        helpButton = GetNode<Button>("Panel/MenuCenter/VMenu/Help/HelpButton");
 
         eosManager = GetNode<EOSManager>("/root/EOSManager");
 
         createButton.Pressed += OnCreateGamePressed;
         joinButton.Pressed += OnJoinGamePressed;
         quitButton.Pressed += OnQuitPressed;
+        settingsButton.Pressed += OnSettingsPressed;
+        helpButton.Pressed += OnHelpPressed;
 
         // Podłącz sygnał LobbyCreated
         if (eosManager != null)
@@ -150,6 +158,18 @@ public partial class MainMenu : Control
     {
         GD.Print("Quitting game...");
         GetTree().Quit();
+    }
+
+    private void OnSettingsPressed()
+    {
+        GD.Print("Loading Settings scene...");
+        GetTree().ChangeSceneToFile(SettingsSceneString);
+    }
+
+    private void OnHelpPressed()
+    {
+        GD.Print("Loading Help scene...");
+        GetTree().ChangeSceneToFile(HelpSceneString);
     }
 
     public override void _ExitTree()
